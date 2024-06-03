@@ -8,11 +8,13 @@ charset-normalizer==3.3.2
 click==8.1.7
 Flask==3.0.3
 frozenlist==1.4.1
+gunicorn==22.0.0
 idna==3.7
 itsdangerous==2.2.0
 Jinja2==3.1.4
 MarkupSafe==2.1.5
 multidict==6.0.5
+packaging==24.0
 pip==24.0
 PyJWT==2.8.0
 python-dotenv==1.0.1
