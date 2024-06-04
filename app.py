@@ -4,6 +4,7 @@ from requests.adapters import HTTPAdapter
 import os
 from dotenv import load_dotenv
 from requests.packages.urllib3.util.retry import Retry
+
 load_dotenv()
 app = Flask(__name__)
 
@@ -17,9 +18,10 @@ session = requests.Session()
 retry_strategy = Retry(
     total=3,
     status_forcelist=[429, 500, 502, 503, 504],
-    method_whitelist=["HEAD", "GET", "OPTIONS"],
+    allowed_methods=["HEAD", "GET", "OPTIONS"],
     backoff_factor=1
 )
+
 adapter = HTTPAdapter(max_retries=retry_strategy, pool_connections=10, pool_maxsize=100)
 session.mount('http://', adapter)
 session.mount('https://', adapter)
