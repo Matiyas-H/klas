@@ -4,9 +4,14 @@ from requests.adapters import HTTPAdapter
 import os
 from dotenv import load_dotenv
 from requests.packages.urllib3.util.retry import Retry
+import logging
+from time import time
 
 load_dotenv()
 app = Flask(__name__)
+
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
 
 SERVER_SECRET = os.getenv('SERVER_SECRET')
 
