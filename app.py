@@ -3,7 +3,7 @@ import requests
 from requests.adapters import HTTPAdapter
 import os
 from dotenv import load_dotenv
-
+from requests.packages.urllib3.util.retry import Retry
 load_dotenv()
 app = Flask(__name__)
 
@@ -14,7 +14,13 @@ TEXTBACK_API_TOKEN = os.getenv('TEXTBACK_API_TOKEN')
 TEXTBACK_API_SECRET = os.getenv('TEXTBACK_API_SECRET')
 #added session
 session = requests.Session()
-adapter = HTTPAdapter(pool_connections=10, pool_maxsize=100)
+retry_strategy = Retry(
+    total=3,
+    status_forcelist=[429, 500, 502, 503, 504],
+    method_whitelist=["HEAD", "GET", "OPTIONS"],
+    backoff_factor=1
+)
+adapter = HTTPAdapter(max_retries=retry_strategy, pool_connections=10, pool_maxsize=100)
 session.mount('http://', adapter)
 session.mount('https://', adapter)
 
@@ -117,11 +123,12 @@ def get_contact_info(phone_number):
     params = {
         'phone': phone_number
     }
-    response = requests.get(TEXTBACK_API_URL, headers=headers, params=params)
-    if response.status_code == 200:
+    try:
+        response = session.get(TEXTBACK_API_URL, headers=headers, params=params, timeout=(5, 10)) 
+        response.raise_for_status()  
         return response.json().get('info', {})
-    else:
-        print(f"Error fetching contact info: {response.status_code}, {response.text}")
+    except requests.exceptions.RequestException as e:
+        print(f"Request failed: {e}")
         return None
 
 if __name__ == '__main__':
