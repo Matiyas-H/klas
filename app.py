@@ -1,7 +1,9 @@
 from flask import Flask, request, jsonify, abort
 import requests
+from requests.adapters import HTTPAdapter
 import os
 from dotenv import load_dotenv
+
 load_dotenv()
 app = Flask(__name__)
 
@@ -10,11 +12,11 @@ SERVER_SECRET = os.getenv('SERVER_SECRET')
 TEXTBACK_API_URL = os.getenv('TEXTBACK_API_URL')
 TEXTBACK_API_TOKEN = os.getenv('TEXTBACK_API_TOKEN')
 TEXTBACK_API_SECRET = os.getenv('TEXTBACK_API_SECRET')
-
-# SERVER_SECRET = "s3cr3tK3yExAmpl3SecReT"
-# TEXTBACK_API_URL = "https://api.textback.ai/api/v2/contact/findPhone"
-# TEXTBACK_API_TOKEN =" QJ0fzQzwBlx2DfqfRZpopS2NPYoQV7nE"
-# TEXTBACK_API_SECRET = "PfVq2I-5Js4="
+#added session
+session = requests.Session()
+adapter = HTTPAdapter(pool_connections=10, pool_maxsize=100)
+session.mount('http://', adapter)
+session.mount('https://', adapter)
 
 @app.route('/handle_incoming_call', methods=['POST'])
 def handle_incoming_call():
