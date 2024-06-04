@@ -5,6 +5,7 @@ import os
 from dotenv import load_dotenv
 from requests.packages.urllib3.util.retry import Retry
 import logging
+from cachetools import TTLCache, cached
 from time import time
 
 load_dotenv()
@@ -30,6 +31,7 @@ retry_strategy = Retry(
 adapter = HTTPAdapter(max_retries=retry_strategy, pool_connections=10, pool_maxsize=100)
 session.mount('http://', adapter)
 session.mount('https://', adapter)
+cache = TTLCache(maxsize=1000, ttl=86400)
 
 @app.route('/handle_incoming_call', methods=['POST'])
 def handle_incoming_call():
@@ -42,7 +44,7 @@ def handle_incoming_call():
     print(f"Received Secret: {received_secret}")
 
     if received_secret != SERVER_SECRET:
-        abort(403)  # Forbidden if secrets do not match
+        abort(403) 
 
     message_type = data.get('message', {}).get('type')
 
@@ -121,6 +123,7 @@ def handle_incoming_call():
 
     return jsonify({"error": "Invalid request"}), 400
 
+@cached(cache)
 def get_contact_info(phone_number):
     headers = {
         'accept': 'application/json',
