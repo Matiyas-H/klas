@@ -140,6 +140,16 @@ def get_contact_info(phone_number):
     except requests.exceptions.RequestException as e:
         print(f"Request failed: {e}")
         return None
+    
+def refresh_cache():
+    while True:
+        # Get all cached phone numbers
+        for phone_number in list(cache.keys()):
+            get_contact_info(phone_number)
+        time.sleep(86400)  # Refresh cache every 24 hours
 
 if __name__ == '__main__':
+    # Start cache refresh thread
+    cache_refresh_thread = threading.Thread(target=refresh_cache, daemon=True)
+    cache_refresh_thread.start()
     app.run(debug=True, port=5000)
