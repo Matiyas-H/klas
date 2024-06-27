@@ -11,7 +11,7 @@ import threading
 import json
 import base64
 import urllib.parse
-
+from collections import defaultdict
 
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 logger = logging.getLogger(__name__)
@@ -41,7 +41,7 @@ adapter = HTTPAdapter(max_retries=retry_strategy, pool_connections=10, pool_maxs
 session.mount('http://', adapter)
 session.mount('https://', adapter)
 cache = TTLCache(maxsize=1000, ttl=86400)
-
+keypress_counter = defaultdict(int)
 logger.info("Configured session and cache")
 
 @app.route('/handle_incoming_call', methods=['POST'])
@@ -333,10 +333,17 @@ def send_trackdrive_keypress(td_uuid, keypress, subdomain, financial_data=None):
         response.raise_for_status()
         logger.info(f"TrackDrive API response: Status Code {response.status_code}, Content: {response.text}")
         logger.info(f"Keypress and data sent successfully for TD_UUID: {td_uuid}")
+
+        keypress_counter[td_uuid] += 1
+        logger.info(f"Keypress sent {keypress_counter[td_uuid]} times for TD_UUID: {td_uuid}")
         return True
     except requests.RequestException as e:
         logger.error(f"Failed to send keypress and data: {str(e)}")
         return False
+
+
+def get_keypress_count(td_uuid):
+    return keypress_counter[td_uuid]
 
 if __name__ == '__main__':
     logger.info("Starting cache refresh thread")
