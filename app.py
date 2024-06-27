@@ -12,10 +12,13 @@ import json
 import base64
 import urllib.parse
 from collections import defaultdict
+from logging.handlers import RotatingFileHandler
 
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 logger = logging.getLogger(__name__)
-
+file_handler = RotatingFileHandler('app.log', maxBytes=10240, backupCount=10)
+file_handler.setFormatter(logging.Formatter('%(asctime)s - %(levelname)s - %(message)s'))
+logger.addHandler(file_handler)
 load_dotenv()
 app = Flask(__name__)
 
@@ -336,6 +339,7 @@ def send_trackdrive_keypress(td_uuid, keypress, subdomain, financial_data=None):
 
         keypress_counter[td_uuid] += 1
         logger.info(f"Keypress sent {keypress_counter[td_uuid]} times for TD_UUID: {td_uuid}")
+        print(f"Keypress sent {keypress_counter[td_uuid]} times for TD_UUID: {td_uuid}")
         return True
     except requests.RequestException as e:
         logger.error(f"Failed to send keypress and data: {str(e)}")
@@ -344,13 +348,6 @@ def send_trackdrive_keypress(td_uuid, keypress, subdomain, financial_data=None):
 
 def get_keypress_count(td_uuid):
     return keypress_counter[td_uuid]
-
-if __name__ == '__main__':
-    logger.info("Starting cache refresh thread")
-    # cache_refresh_thread = threading.Thread(target=refresh_cache, daemon=True)
-    # cache_refresh_thread.start()
-    logger.info("Starting Flask application")
-    app.run(debug=True, port=5000)
 
 if __name__ == '__main__':
     logger.info("Starting cache refresh thread")
