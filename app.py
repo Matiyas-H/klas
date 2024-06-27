@@ -72,14 +72,14 @@ def handle_incoming_call():
         logger.info("Handling assistant-request")
         response = {
             "assistant": {
-                "firstMessage": "Hi, thanks for calling in. My name is Jessica Miller. How can I assist you today?",
+                "firstMessage": "Hello, this is Jessica Miller from the Hardship Debt Relief program. how are you today?",
                 "model": {
                     "provider": "openai",
                     "model": "gpt-3.5-turbo",
                     "messages": [
                         {
                             "role": "system",
-                            "content": "You are a helpful assistant. When a call is received, trigger the extractCallerInfo function and use the extracted information to personalize the conversation. Do not ask for the phone number, you have it already"
+                            "content": "You are an experienced lead qualifier for a hardship debt relief program. Your primary goal is to qualify callers for the program efficiently and empathetically. Follow these instructions strictly:"
                         }
                     ],
                     "functions": [
@@ -268,7 +268,7 @@ def qualify_lead(financial_data):
     logger.info("Qualifying lead")
     is_qualified = (
         financial_data['debtAmount'] >= 10000 and
-        financial_data['monthlyIncome'] >= 2000 and
+        financial_data['monthlyIncome'] >= 1500 and
         financial_data['hasCheckingAccount'] == True
     )
     logger.info(f"Lead qualification result: {is_qualified}")
