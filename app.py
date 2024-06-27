@@ -221,47 +221,23 @@ def handle_send_financial_details(parameters, td_uuid, subdomain):
 
     logger.info(f"Received financial data: {json.dumps(financial_data, indent=2)}")
 
-    # Implement qualification logic
-    is_qualified = qualify_lead(financial_data)
-    logger.info(f"Is qualified: {is_qualified}")
-
-    if is_qualified:
-        logger.info("Caller is qualified. Attempting to send keypress and financial data.")
-        if td_uuid:
-            logger.info(f"Attempting to send keypress '*' and financial data for TD_UUID: {td_uuid}")
-            success = handle_send_keypress(td_uuid, '*', subdomain, financial_data)
-            if success:
-                logger.info(f"Keypress '*' and financial data sent successfully for TD_UUID: {td_uuid}")
-                return jsonify({
-                    "status": "success", 
-                    "message": "Caller is qualified, keypress and financial data sent",
-                    "qualified": True,
-                    "data_sent": True
-                }), 200
-            else:
-                logger.warning(f"Failed to send keypress '*' and financial data for TD_UUID: {td_uuid}")
-                return jsonify({
-                    "status": "partial_success", 
-                    "message": "Caller is qualified but failed to send keypress and financial data",
-                    "qualified": True,
-                    "data_sent": False
-                }), 200
-        else:
-            logger.warning("Caller is qualified but td_uuid is missing. Cannot send data.")
-            return jsonify({
-                "status": "partial_success", 
-                "message": "Caller is qualified but td_uuid is missing",
-                "qualified": True,
-                "data_sent": False
-            }), 200
-    else:
-        logger.info("Caller is not qualified. No data will be sent.")
+    # Immediately send keypress and financial data
+    success = send_trackdrive_keypress(td_uuid, '*', subdomain, financial_data)
+    
+    if success:
+        logger.info(f"Keypress '*' and financial data sent successfully for TD_UUID: {td_uuid}")
         return jsonify({
             "status": "success", 
-            "message": "Caller is not qualified",
-            "qualified": False,
-            "data_sent": False
+            "message": "Financial data received and keypress sent",
+            "data_sent": True
         }), 200
+    else:
+        logger.warning(f"Failed to send keypress '*' and financial data for TD_UUID: {td_uuid}")
+        return jsonify({
+            "status": "error", 
+            "message": "Failed to send keypress and financial data",
+            "data_sent": False
+        }), 500
 
 
 def qualify_lead(financial_data):
@@ -361,6 +337,13 @@ def send_trackdrive_keypress(td_uuid, keypress, subdomain, financial_data=None):
     except requests.RequestException as e:
         logger.error(f"Failed to send keypress and data: {str(e)}")
         return False
+
+if __name__ == '__main__':
+    logger.info("Starting cache refresh thread")
+    # cache_refresh_thread = threading.Thread(target=refresh_cache, daemon=True)
+    # cache_refresh_thread.start()
+    logger.info("Starting Flask application")
+    app.run(debug=True, port=5000)
 
 if __name__ == '__main__':
     logger.info("Starting cache refresh thread")
