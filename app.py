@@ -10,24 +10,21 @@ from time import time
 import threading
 import json
 import base64
-import urllib.parse
-from collections import defaultdict
-from logging.handlers import RotatingFileHandler
-import uuid
+
+
 
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 logger = logging.getLogger(__name__)
-file_handler = RotatingFileHandler('app.log', maxBytes=10240, backupCount=10)
-file_handler.setFormatter(logging.Formatter('%(asctime)s - %(levelname)s - %(message)s'))
-logger.addHandler(file_handler)
+
 load_dotenv()
 app = Flask(__name__)
 
 logger.info("Starting application")
-SERVER_SECRET = os.getenv('SERVER_SECRET')
-TEXTBACK_API_URL = os.getenv('TEXTBACK_API_URL')
-TEXTBACK_API_TOKEN = os.getenv('TEXTBACK_API_TOKEN')
-TEXTBACK_API_SECRET = os.getenv('TEXTBACK_API_SECRET')
+
+SERVER_SECRET = "s3cr3tK3yExAmpl3SecReT"
+TEXTBACK_API_URL = "https://api.textback.ai/swagger-ui/index.html#/contact-resource/findPhoneForUser"
+TEXTBACK_API_TOKEN = "QJ0fzQzwBlx2DfqfRZpopS2NPYoQV7nE"
+TEXTBACK_API_SECRET = "PfVq2I-5Js4="
 TRACKDRIVE_PUBLIC_KEY = os.getenv('TRACKDRIVE_PUBLIC_KEY')
 TRACKDRIVE_PRIVATE_KEY = os.getenv('TRACKDRIVE_PRIVATE_KEY')
 
@@ -45,7 +42,7 @@ adapter = HTTPAdapter(max_retries=retry_strategy, pool_connections=10, pool_maxs
 session.mount('http://', adapter)
 session.mount('https://', adapter)
 cache = TTLCache(maxsize=1000, ttl=86400)
-keypress_counter = defaultdict(int)
+
 logger.info("Configured session and cache")
 
 @app.route('/handle_incoming_call', methods=['POST'])
@@ -67,12 +64,8 @@ def handle_incoming_call():
 
     call_data = data.get('message', {}).get('call', {})
     td_uuid = call_data.get('td_uuid')
-    category = call_data.get('category', "inbound")
-    subdomain = call_data.get('subdomain', "trackdrive")
-
-    if not td_uuid:
-        td_uuid = str(uuid.uuid4())
-        logger.warning(f"No TD_UUID provided. Generated new UUID: {td_uuid}")
+    category = call_data.get('category')
+    subdomain = call_data.get('subdomain')
 
     logger.info(f"Captured call data - TD_UUID: {td_uuid}, Category: {category}, Subdomain: {subdomain}")
 
@@ -80,31 +73,17 @@ def handle_incoming_call():
         logger.info("Handling assistant-request")
         response = {
             "assistant": {
-                "firstMessage": "Hello, this is Jessica Miller from the Hardship Debt Relief program. how are you today?",
+                "firstMessage": "Hi, thanks for calling in. My name is Jessica Miller. How can I assist you today?",
                 "model": {
                     "provider": "openai",
                     "model": "gpt-3.5-turbo",
                     "messages": [
                         {
                             "role": "system",
-                            "content": "You are an experienced lead qualifier for a hardship debt relief program. Your primary goal is to qualify callers for the program efficiently and empathetically. Follow these instructions strictly:"
+                            "content": "You are a helpful assistant. When a call is received, trigger the extractCallerInfo function and use the extracted information to personalize the conversation. Do not ask for the phone number, you have it already"
                         }
                     ],
                     "functions": [
-                        {
-                            "name": "extractCallerInfo",
-                            "description": "Extracts the caller's information for personalization.",
-                            "parameters": {
-                                "type": "object",
-                                "properties": {
-                                    "td_uuid": {"type": "string", "description": "Unique Call ID from TrackDrive"},
-                                    "category": {"type": "string", "description": "Type of call (inbound, outbound, or scheduled_callback)"},
-                                    "subdomain": {"type": "string", "description": "Subdomain for TrackDrive API calls"},
-                                    "from": {"type": "string", "description": "Caller's phone number"}
-                                },
-                                "required": ["td_uuid", "category", "subdomain", "from"]
-                            }
-                        },
                         {
                             "name": "sendFinancialDetails",
                             "description": "Sends collected financial details to the server.",
@@ -121,19 +100,6 @@ def handle_incoming_call():
                                 "required": ["debtAmount", "debtType", "monthlyIncome", "hasCheckingAccount", "employmentStatus", "subdomain"]
                             }
                         },
-                        {
-                            "name": "sendKeypress",
-                            "description": "Sends a keypress to TrackDrive.",
-                            "parameters": {
-                                "type": "object",
-                                "properties": {
-                                    "td_uuid": {"type": "string", "description": "Unique Call ID from TrackDrive"},
-                                    "keypress": {"type": "string", "description": "Keypress to send (e.g., '*', '#', '6', '7', '8', '9', '0')"},
-                                    "subdomain": {"type": "string", "description": "Subdomain for TrackDrive API calls"}
-                                },
-                                "required": ["td_uuid", "keypress", "subdomain"]
-                            }
-                        }
                     ]
                 }
             }
@@ -217,7 +183,7 @@ def handle_extract_caller_info(data, td_uuid, category, subdomain):
         return jsonify(response), 200
   
 
-def handle_send_financial_details(parameters, td_uuid, subdomain="trackdrive"):
+def handle_send_financial_details(parameters, td_uuid, subdomain):
     logger.info(f"Handling sendFinancialDetails - TD_UUID: {td_uuid}, Subdomain: {subdomain}")
     financial_data = {
         "debtAmount": parameters.get('debtAmount'),
@@ -229,36 +195,44 @@ def handle_send_financial_details(parameters, td_uuid, subdomain="trackdrive"):
 
     logger.info(f"Received financial data: {json.dumps(financial_data, indent=2)}")
 
-    # Immediately send keypress and financial data
-    success = send_trackdrive_keypress(td_uuid, '*', subdomain, financial_data)
-    
-    if success:
-        logger.info(f"Keypress '*' and financial data sent successfully for TD_UUID: {td_uuid}")
-        return jsonify({
-            "status": "success", 
-            "message": "Financial data received and keypress sent",
-            "data_sent": True
-        }), 200
+    logger.info("Attempting to send keypress and financial data.")
+    if td_uuid:
+        logger.info(f"Attempting to send keypress '*' and financial data for TD_UUID: {td_uuid}")
+        success = send_trackdrive_keypress(td_uuid, '*', subdomain, financial_data)
+        if success:
+            logger.info(f"Keypress '*' and financial data sent successfully for TD_UUID: {td_uuid}")
+            return jsonify({
+                "status": "success", 
+                "message": "Keypress and financial data sent",
+                "data_sent": True
+            }), 200
+        else:
+            logger.warning(f"Failed to send keypress '*' and financial data for TD_UUID: {td_uuid}")
+            return jsonify({
+                "status": "error", 
+                "message": "Failed to send keypress and financial data",
+                "data_sent": False
+            }), 500
     else:
-        logger.warning(f"Failed to send keypress '*' and financial data for TD_UUID: {td_uuid}")
+        logger.warning("td_uuid is missing. Cannot send data.")
         return jsonify({
             "status": "error", 
-            "message": "Failed to send keypress and financial data",
+            "message": "td_uuid is missing",
             "data_sent": False
-        }), 500
-
+        }), 400
+    
 
 def qualify_lead(financial_data):
     logger.info("Qualifying lead")
     is_qualified = (
         financial_data['debtAmount'] >= 10000 and
-        financial_data['monthlyIncome'] >= 1500 and
+        financial_data['monthlyIncome'] >= 2000 and
         financial_data['hasCheckingAccount'] == True
     )
     logger.info(f"Lead qualification result: {is_qualified}")
     return is_qualified
 
-def handle_send_keypress(parameters, td_uuid, subdomain="trackdrive", financial_data=None):
+def handle_send_keypress(parameters, td_uuid, subdomain, financial_data=None):
     logger.info(f"Handling sendKeypress - TD_UUID: {td_uuid}, Subdomain: {subdomain}")
     keypress = parameters.get('keypress')
     logger.info(f"TD_UUID: {td_uuid}, Keypress: {keypress}")
@@ -275,7 +249,7 @@ def handle_send_keypress(parameters, td_uuid, subdomain="trackdrive", financial_
         logger.error(f"Failed to send keypress {keypress} and financial data for call {td_uuid}")
         return jsonify({"status": "error", "message": "Failed to send keypress and financial data"}), 500
 
-
+import urllib.parse
 
 @cached(cache)
 def get_contact_info(phone_number):
@@ -315,7 +289,7 @@ def get_contact_info(phone_number):
 
 import base64
 
-def send_trackdrive_keypress(td_uuid, keypress, subdomain="omnia-voice", financial_data=None):
+def send_trackdrive_keypress(td_uuid, keypress, subdomain, financial_data=None):
     logger.info(f"Attempting to send TrackDrive keypress and data. TD_UUID: {td_uuid}, Keypress: {keypress}, Subdomain: {subdomain}")
     url = f"https://{subdomain}.trackdrive.com/api/v1/calls/send_key_press"
     
@@ -330,10 +304,9 @@ def send_trackdrive_keypress(td_uuid, keypress, subdomain="omnia-voice", financi
     
     payload = {
         "id": td_uuid,
-        "digits": keypress
+        "digits": keypress,
+        "data": financial_data
     }
-    if financial_data:
-        payload["data"] = financial_data
 
     try:
         logger.info(f"Sending POST request to TrackDrive API. URL: {url}, Payload: {json.dumps(payload)}")
@@ -341,18 +314,12 @@ def send_trackdrive_keypress(td_uuid, keypress, subdomain="omnia-voice", financi
         response.raise_for_status()
         logger.info(f"TrackDrive API response: Status Code {response.status_code}, Content: {response.text}")
         logger.info(f"Keypress and data sent successfully for TD_UUID: {td_uuid}")
-
-        keypress_counter[td_uuid] += 1
-        logger.info(f"Keypress sent {keypress_counter[td_uuid]} times for TD_UUID: {td_uuid}")
-        print(f"Keypress sent {keypress_counter[td_uuid]} times for TD_UUID: {td_uuid}")
         return True
     except requests.RequestException as e:
         logger.error(f"Failed to send keypress and data: {str(e)}")
         return False
-
-
-def get_keypress_count(td_uuid):
-    return keypress_counter[td_uuid]
+    
+    
 
 if __name__ == '__main__':
     logger.info("Starting cache refresh thread")
