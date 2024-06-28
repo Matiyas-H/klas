@@ -13,6 +13,7 @@ import base64
 import urllib.parse
 from collections import defaultdict
 from logging.handlers import RotatingFileHandler
+import uuid
 
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 logger = logging.getLogger(__name__)
@@ -68,6 +69,10 @@ def handle_incoming_call():
     td_uuid = call_data.get('td_uuid')
     category = call_data.get('category', "inbound")
     subdomain = call_data.get('subdomain', 'omnia-voice')
+
+    if not td_uuid:
+        td_uuid = str(uuid.uuid4())
+        logger.warning(f"No TD_UUID provided. Generated new UUID: {td_uuid}")
 
     logger.info(f"Captured call data - TD_UUID: {td_uuid}, Category: {category}, Subdomain: {subdomain}")
 
