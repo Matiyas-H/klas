@@ -68,14 +68,14 @@ def handle_incoming_call():
     td_uuid = call_data.get('td_uuid')
     category = call_data.get('category')
     subdomain = call_data.get('subdomain')
-    # from_number = call_data.get('customer', {}).get('number')
+    from_number = call_data.get('customer', {}).get('number')
 
-    # if not td_uuid and from_number:
-    #     td_uuid = from_number
-    #     logger.info(f"Using from_number as td_uuid: {td_uuid}")
+    if not td_uuid and from_number:
+        td_uuid = from_number
+        logger.info(f"Using from_number as td_uuid: {td_uuid}")
 
-    # print(f"Incoming call from: {from_number}")
-    # logger.info(f"Incoming call from: {from_number}")
+    print(f"Incoming call from: {from_number}")
+    logger.info(f"Incoming call from: {from_number}")
 
     logger.info(f"Captured call data - TD_UUID: {td_uuid}, Category: {category}, Subdomain: {subdomain}")
 
