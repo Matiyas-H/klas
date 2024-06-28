@@ -324,7 +324,7 @@ import base64
 
 def send_trackdrive_keypress(td_uuid, keypress, subdomain, financial_data=None):
     logger.info(f"Attempting to send TrackDrive keypress and data. TD_UUID: {td_uuid}, Keypress: {keypress}, Subdomain: {subdomain}")
-    url = f"https://{subdomain}.trackdrive.com/api/v1/calls/send_key_press"
+    url = "https://trackdrive.com/api/v1/calls/send_key_press"
     
     # Combine and encode the public and private keys
     auth_string = f"{TRACKDRIVE_PUBLIC_KEY}:{TRACKDRIVE_PRIVATE_KEY}"
@@ -332,16 +332,16 @@ def send_trackdrive_keypress(td_uuid, keypress, subdomain, financial_data=None):
     
     headers = {
         "Content-Type": "application/json",
-        "Authorization": f"Basic {encoded_auth}"
+        "Authorization": f"Basic {encoded_auth}",
+        "X-Trackdrive-Subdomain": subdomain  # Add subdomain as a custom header
     }
     
     payload = {
         "id": td_uuid or "12345",
         "digits": keypress,
-        "data": financial_data
+        "data": financial_data,
+        "subdomain": subdomain  # Include subdomain in the payload as well
     }
-    if td_uuid:
-        payload["id"] = td_uuid
 
     try:
         logger.info(f"Sending POST request to TrackDrive API. URL: {url}, Payload: {json.dumps(payload)}")
@@ -352,8 +352,9 @@ def send_trackdrive_keypress(td_uuid, keypress, subdomain, financial_data=None):
         return True
     except requests.RequestException as e:
         logger.error(f"Failed to send keypress and data: {str(e)}")
+        if hasattr(e, 'response') and e.response is not None:
+            logger.error(f"Response content: {e.response.content}")
         return False
-    
     
 
 if __name__ == '__main__':
