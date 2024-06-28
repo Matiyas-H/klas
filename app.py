@@ -66,8 +66,8 @@ def handle_incoming_call():
 
     call_data = data.get('message', {}).get('call', {})
     td_uuid = call_data.get('td_uuid')
-    category = call_data.get('category')
-    subdomain = call_data.get('subdomain')
+    category = call_data.get('category', "inbound")
+    subdomain = call_data.get('subdomain', 'omnia-voice')
 
     logger.info(f"Captured call data - TD_UUID: {td_uuid}, Category: {category}, Subdomain: {subdomain}")
 
@@ -253,7 +253,7 @@ def qualify_lead(financial_data):
     logger.info(f"Lead qualification result: {is_qualified}")
     return is_qualified
 
-def handle_send_keypress(parameters, td_uuid, subdomain, financial_data=None):
+def handle_send_keypress(parameters, td_uuid, subdomain="omnia-voice", financial_data=None):
     logger.info(f"Handling sendKeypress - TD_UUID: {td_uuid}, Subdomain: {subdomain}")
     keypress = parameters.get('keypress')
     logger.info(f"TD_UUID: {td_uuid}, Keypress: {keypress}")
