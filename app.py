@@ -324,7 +324,8 @@ import base64
 
 def send_trackdrive_keypress(td_uuid, keypress, subdomain, financial_data=None):
     logger.info(f"Attempting to send TrackDrive keypress and data. TD_UUID: {td_uuid}, Keypress: {keypress}, Subdomain: {subdomain}")
-    url = "https://trackdrive.com/api/v1/calls/send_key_press"
+    
+    url = f"https://{subdomain}.trackdrive.com/api/v1/calls/send_key_press"
     
     # Combine and encode the public and private keys
     auth_string = f"{TRACKDRIVE_PUBLIC_KEY}:{TRACKDRIVE_PRIVATE_KEY}"
@@ -332,16 +333,16 @@ def send_trackdrive_keypress(td_uuid, keypress, subdomain, financial_data=None):
     
     headers = {
         "Content-Type": "application/json",
-        "Authorization": f"Basic {encoded_auth}",
-        "X-Trackdrive-Subdomain": subdomain  # Add subdomain as a custom header
+        "Authorization": f"Basic {encoded_auth}"
     }
     
     payload = {
-        "id": td_uuid or "12345",
+        "id": td_uuid,
         "digits": keypress,
-        "data": financial_data,
-        "subdomain": subdomain  # Include subdomain in the payload as well
     }
+    
+    if financial_data:
+        payload["data"] = financial_data
 
     try:
         logger.info(f"Sending POST request to TrackDrive API. URL: {url}, Payload: {json.dumps(payload)}")
@@ -353,9 +354,42 @@ def send_trackdrive_keypress(td_uuid, keypress, subdomain, financial_data=None):
     except requests.RequestException as e:
         logger.error(f"Failed to send keypress and data: {str(e)}")
         if hasattr(e, 'response') and e.response is not None:
+            logger.error(f"Response status code: {e.response.status_code}")
             logger.error(f"Response content: {e.response.content}")
         return False
+def schedule_trackdrive_callback(schedule_id, caller_id, callback_time, timezone, subdomain):
+    logger.info(f"Attempting to schedule TrackDrive callback. Schedule ID: {schedule_id}, Caller ID: {caller_id}")
     
+    url = f"https://{subdomain}.trackdrive.com/api/v1/scheduled_callbacks"
+    
+    auth_string = f"{TRACKDRIVE_PUBLIC_KEY}:{TRACKDRIVE_PRIVATE_KEY}"
+    encoded_auth = base64.b64encode(auth_string.encode()).decode()
+    
+    headers = {
+        "Content-Type": "application/json",
+        "Authorization": f"Basic {encoded_auth}"
+    }
+    
+    payload = {
+        "place_call_at": callback_time.strftime("%Y-%m-%d %H:%M"),
+        "place_call_time_zone": timezone,
+        "schedule_id": schedule_id,
+        "to": caller_id
+    }
+
+    try:
+        logger.info(f"Sending POST request to TrackDrive API. URL: {url}, Payload: {json.dumps(payload)}")
+        response = requests.post(url, headers=headers, json=payload)
+        response.raise_for_status()
+        logger.info(f"TrackDrive API response: Status Code {response.status_code}, Content: {response.text}")
+        logger.info(f"Callback scheduled successfully")
+        return True
+    except requests.RequestException as e:
+        logger.error(f"Failed to schedule callback: {str(e)}")
+        if hasattr(e, 'response') and e.response is not None:
+            logger.error(f"Response status code: {e.response.status_code}")
+            logger.error(f"Response content: {e.response.content}")
+        return False
 
 if __name__ == '__main__':
     logger.info("Starting cache refresh thread")
