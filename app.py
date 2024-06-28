@@ -217,7 +217,7 @@ def handle_extract_caller_info(data, td_uuid, category, subdomain):
         return jsonify(response), 200
   
 
-def handle_send_financial_details(parameters, td_uuid, subdomain):
+def handle_send_financial_details(parameters, td_uuid="12345", subdomain="trackdrive"):
     logger.info(f"Handling sendFinancialDetails - TD_UUID: {td_uuid}, Subdomain: {subdomain}")
     financial_data = {
         "debtAmount": parameters.get('debtAmount'),
@@ -258,7 +258,7 @@ def qualify_lead(financial_data):
     logger.info(f"Lead qualification result: {is_qualified}")
     return is_qualified
 
-def handle_send_keypress(parameters, td_uuid, subdomain, financial_data=None):
+def handle_send_keypress(parameters, td_uuid, subdomain="trackdrive", financial_data=None):
     logger.info(f"Handling sendKeypress - TD_UUID: {td_uuid}, Subdomain: {subdomain}")
     keypress = parameters.get('keypress')
     logger.info(f"TD_UUID: {td_uuid}, Keypress: {keypress}")
@@ -315,7 +315,7 @@ def get_contact_info(phone_number):
 
 import base64
 
-def send_trackdrive_keypress(td_uuid, keypress, subdomain, financial_data=None):
+def send_trackdrive_keypress(td_uuid, keypress, subdomain="trackdrive", financial_data=None):
     logger.info(f"Attempting to send TrackDrive keypress and data. TD_UUID: {td_uuid}, Keypress: {keypress}, Subdomain: {subdomain}")
     url = f"https://{subdomain}.trackdrive.com/api/v1/calls/send_key_press"
     
