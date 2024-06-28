@@ -220,7 +220,7 @@ def handle_send_financial_details(parameters, td_uuid=None, subdomain=None):
 
 def send_trackdrive_keypress(td_uuid, keypress, subdomain, financial_data=None):
     logger.info(f"Attempting to send TrackDrive keypress and data. TD_UUID: {td_uuid}, Keypress: {keypress}, Subdomain: {subdomain}")
-    url = f"https://{subdomain}.trackdrive.com/api/v1/calls/send_key_press"
+    url = f"https://trackdrive.trackdrive.com/api/v1/calls/send_key_press"
     
     # Combine and encode the public and private keys
     auth_string = f"{TRACKDRIVE_PUBLIC_KEY}:{TRACKDRIVE_PRIVATE_KEY}"
