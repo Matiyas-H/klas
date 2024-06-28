@@ -68,7 +68,7 @@ def handle_incoming_call():
     call_data = data.get('message', {}).get('call', {})
     td_uuid = call_data.get('td_uuid')
     category = call_data.get('category', "inbound")
-    subdomain = call_data.get('subdomain')
+    subdomain = call_data.get('subdomain', "omnia-voice")
 
     if not td_uuid:
         td_uuid = str(uuid.uuid4())
@@ -217,7 +217,7 @@ def handle_extract_caller_info(data, td_uuid, category, subdomain):
         return jsonify(response), 200
   
 
-def handle_send_financial_details(parameters, td_uuid="12345", subdomain="trackdrive"):
+def handle_send_financial_details(parameters, td_uuid, subdomain="omnia-voice"):
     logger.info(f"Handling sendFinancialDetails - TD_UUID: {td_uuid}, Subdomain: {subdomain}")
     financial_data = {
         "debtAmount": parameters.get('debtAmount'),
@@ -258,7 +258,7 @@ def qualify_lead(financial_data):
     logger.info(f"Lead qualification result: {is_qualified}")
     return is_qualified
 
-def handle_send_keypress(parameters, td_uuid, subdomain="trackdrive", financial_data=None):
+def handle_send_keypress(parameters, td_uuid="12345", subdomain="omnia-voice", financial_data=None):
     logger.info(f"Handling sendKeypress - TD_UUID: {td_uuid}, Subdomain: {subdomain}")
     keypress = parameters.get('keypress')
     logger.info(f"TD_UUID: {td_uuid}, Keypress: {keypress}")
@@ -315,9 +315,9 @@ def get_contact_info(phone_number):
 
 import base64
 
-def send_trackdrive_keypress(td_uuid, keypress, subdomain="trackdrive", financial_data=None):
+def send_trackdrive_keypress(td_uuid, keypress, subdomain="omnia-voice", financial_data=None):
     logger.info(f"Attempting to send TrackDrive keypress and data. TD_UUID: {td_uuid}, Keypress: {keypress}, Subdomain: {subdomain}")
-    url = f"https://{subdomain}.trackdrive.com/api/v1/calls/send_key_press"
+    url = f"https://omnia-voice.trackdrive.com/api/v1/calls/send_key_press"
     
     # Combine and encode the public and private keys
     auth_string = f"{TRACKDRIVE_PUBLIC_KEY}:{TRACKDRIVE_PRIVATE_KEY}"
