@@ -125,6 +125,7 @@ def handle_incoming_call():
         else:
             logger.warning(f"Unknown function name: {function_name}")
             return jsonify({"error": f"Unknown function: {function_name}"}), 400
+        
 
     else:
         logger.warning(f"Invalid request type: {message_type}")
@@ -183,7 +184,7 @@ def handle_extract_caller_info(data, td_uuid, category, subdomain):
         return jsonify(response), 200
   
 
-def handle_send_financial_details(parameters, td_uuid, subdomain):
+def handle_send_financial_details(parameters, td_uuid=None, subdomain=None):
     logger.info(f"Handling sendFinancialDetails - TD_UUID: {td_uuid}, Subdomain: {subdomain}")
     financial_data = {
         "debtAmount": parameters.get('debtAmount'),
@@ -195,31 +196,61 @@ def handle_send_financial_details(parameters, td_uuid, subdomain):
 
     logger.info(f"Received financial data: {json.dumps(financial_data, indent=2)}")
 
+    # Use default values if td_uuid or subdomain are missing
+    subdomain = subdomain or "global-telcom-investors"
+
+    logger.info(f"Using TD_UUID: {td_uuid}, Subdomain: {subdomain}")
+
     logger.info("Attempting to send keypress and financial data.")
-    if td_uuid:
-        logger.info(f"Attempting to send keypress '*' and financial data for TD_UUID: {td_uuid}")
-        success = send_trackdrive_keypress(td_uuid, '*', subdomain, financial_data)
-        if success:
-            logger.info(f"Keypress '*' and financial data sent successfully for TD_UUID: {td_uuid}")
-            return jsonify({
-                "status": "success", 
-                "message": "Keypress and financial data sent",
-                "data_sent": True
-            }), 200
-        else:
-            logger.warning(f"Failed to send keypress '*' and financial data for TD_UUID: {td_uuid}")
-            return jsonify({
-                "status": "error", 
-                "message": "Failed to send keypress and financial data",
-                "data_sent": False
-            }), 500
+    success = send_trackdrive_keypress(td_uuid, '*', subdomain, financial_data)
+    if success:
+        logger.info(f"Keypress '*' and financial data sent successfully")
+        return jsonify({
+            "status": "success", 
+            "message": "Keypress and financial data sent",
+            "data_sent": True
+        }), 200
     else:
-        logger.warning("td_uuid is missing. Cannot send data.")
+        logger.warning(f"Failed to send keypress '*' and financial data")
         return jsonify({
             "status": "error", 
-            "message": "td_uuid is missing",
+            "message": "Failed to send keypress and financial data",
             "data_sent": False
-        }), 400
+        }), 500
+
+def send_trackdrive_keypress(td_uuid, keypress, subdomain, financial_data=None):
+    logger.info(f"Attempting to send TrackDrive keypress and data. TD_UUID: {td_uuid}, Keypress: {keypress}, Subdomain: {subdomain}")
+    url = f"https://{subdomain}.trackdrive.com/api/v1/calls/send_key_press"
+    
+    # Combine and encode the public and private keys
+    auth_string = f"{TRACKDRIVE_PUBLIC_KEY}:{TRACKDRIVE_PRIVATE_KEY}"
+    encoded_auth = base64.b64encode(auth_string.encode()).decode()
+    
+    headers = {
+        "Content-Type": "application/json",
+        "Authorization": f"Basic {encoded_auth}"
+    }
+    
+    payload = {
+        "digits": keypress,
+        "data": financial_data
+    }
+    if td_uuid:
+        payload["id"] = td_uuid
+
+    try:
+        logger.info(f"Sending POST request to TrackDrive API. URL: {url}, Payload: {json.dumps(payload)}")
+        response = requests.post(url, headers=headers, json=payload)
+        response.raise_for_status()
+        logger.info(f"TrackDrive API response: Status Code {response.status_code}, Content: {response.text}")
+        logger.info(f"Keypress and data sent successfully")
+        return True
+    except requests.RequestException as e:
+        logger.error(f"Failed to send keypress and data: {str(e)}")
+        return False
+
+# In the handle_incoming_call function, update the call to handle_send_financial_details:
+
     
 
 def qualify_lead(financial_data):
@@ -303,17 +334,18 @@ def send_trackdrive_keypress(td_uuid, keypress, subdomain, financial_data=None):
     }
     
     payload = {
-        "id": td_uuid,
         "digits": keypress,
         "data": financial_data
     }
+    if td_uuid:
+        payload["id"] = td_uuid
 
     try:
         logger.info(f"Sending POST request to TrackDrive API. URL: {url}, Payload: {json.dumps(payload)}")
         response = requests.post(url, headers=headers, json=payload)
         response.raise_for_status()
         logger.info(f"TrackDrive API response: Status Code {response.status_code}, Content: {response.text}")
-        logger.info(f"Keypress and data sent successfully for TD_UUID: {td_uuid}")
+        logger.info(f"Keypress and data sent successfully")
         return True
     except requests.RequestException as e:
         logger.error(f"Failed to send keypress and data: {str(e)}")
