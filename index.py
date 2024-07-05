@@ -91,11 +91,13 @@ def handle_incoming_call():
                                 "type": "object",
                                 "properties": {
                                     "td_uuid": {"type": "string", "description": "Unique Call ID from TrackDrive"},
+                                    "caller_id": {"type": "string", "description": "Caller's phone number from TrackDrive"},
+                                    "from": {"type": "string", "description": "Caller's phone number from Twilio"},
+                                    "callSid": {"type": "string", "description": "Twilio Call SID"},
                                     "category": {"type": "string", "description": "Type of call (inbound, outbound, or scheduled_callback)"},
-                                    "subdomain": {"type": "string", "description": "Subdomain for TrackDrive API calls"},
-                                    "from": {"type": "string", "description": "Caller's phone number"}
+                                    "schedule_id": {"type": "string", "description": "ID for scheduled callbacks"}
                                 },
-                                "required": ["td_uuid", "category", "subdomain", "from"]
+                                "required": ["td_uuid", "category"]
                             }
                         },
                         {
@@ -108,10 +110,9 @@ def handle_incoming_call():
                                     "debtType": {"type": "string", "description": "Type of debt (e.g., credit card, student loan)."},
                                     "monthlyIncome": {"type": "number", "description": "Monthly income of the caller."},
                                     "hasCheckingAccount": {"type": "boolean", "description": "Whether the caller has a checking account."},
-                                    "employmentStatus": {"type": "string", "description": "Current employment status."},
-                                    "subdomain": {"type": "string", "description": "Subdomain for TrackDrive API calls"}
+                                    "employmentStatus": {"type": "string", "description": "Current employment status."}
                                 },
-                                "required": ["debtAmount", "debtType", "monthlyIncome", "hasCheckingAccount", "employmentStatus", "subdomain"]
+                                "required": ["debtAmount", "debtType", "monthlyIncome", "hasCheckingAccount", "employmentStatus"]
                             }
                         },
                         {
@@ -121,16 +122,13 @@ def handle_incoming_call():
                                 "type": "object",
                                 "properties": {
                                     "td_uuid": {"type": "string", "description": "Unique Call ID from TrackDrive"},
-                                    "keypress": {"type": "string", "description": "Keypress to send (e.g., '*', '#', '6', '7', '8', '9', '0')"},
-                                    "subdomain": {"type": "string", "description": "Subdomain for TrackDrive API calls"}
+                                    "keypress": {"type": "string", "description": "Keypress to send (e.g., '*', '#', '6', '7', '8', '9', '0')"}
                                 },
-                                "required": ["td_uuid", "keypress", "subdomain"]
+                                "required": ["td_uuid", "keypress"]
                             }
                         }
-                    ]
-                }
-            }
-        }
+                    ]}}}
+        
         logger.info("Sending assistant-request response")
         return jsonify(response), 200
 
@@ -222,48 +220,30 @@ def handle_send_financial_details(parameters, td_uuid, subdomain):
 
     logger.info(f"Received financial data: {json.dumps(financial_data, indent=2)}")
 
-    # Implement qualification logic
-    is_qualified = qualify_lead(financial_data)
-    logger.info(f"Is qualified: {is_qualified}")
-
-    if is_qualified:
-        logger.info("Caller is qualified. Attempting to send keypress and financial data.")
-        if td_uuid:
-            logger.info(f"Attempting to send keypress '*' and financial data for TD_UUID: {td_uuid}")
-            success = handle_send_keypress(td_uuid, '*', subdomain, financial_data)
-            if success:
-                logger.info(f"Keypress '*' and financial data sent successfully for TD_UUID: {td_uuid}")
-                return jsonify({
-                    "status": "success", 
-                    "message": "Caller is qualified, keypress and financial data sent",
-                    "qualified": True,
-                    "data_sent": True
-                }), 200
-            else:
-                logger.warning(f"Failed to send keypress '*' and financial data for TD_UUID: {td_uuid}")
-                return jsonify({
-                    "status": "partial_success", 
-                    "message": "Caller is qualified but failed to send keypress and financial data",
-                    "qualified": True,
-                    "data_sent": False
-                }), 200
-        else:
-            logger.warning("Caller is qualified but td_uuid is missing. Cannot send data.")
+    if td_uuid:
+        logger.info(f"Attempting to send keypress '*' and financial data for TD_UUID: {td_uuid}")
+        success = send_trackdrive_keypress(td_uuid, '*', subdomain, financial_data)
+        if success:
+            logger.info(f"Keypress '*' and financial data sent successfully for TD_UUID: {td_uuid}")
             return jsonify({
-                "status": "partial_success", 
-                "message": "Caller is qualified but td_uuid is missing",
-                "qualified": True,
-                "data_sent": False
+                "status": "success", 
+                "message": "Keypress and financial data sent",
+                "data_sent": True
             }), 200
+        else:
+            logger.warning(f"Failed to send keypress '*' and financial data for TD_UUID: {td_uuid}")
+            return jsonify({
+                "status": "error", 
+                "message": "Failed to send keypress and financial data",
+                "data_sent": False
+            }), 500
     else:
-        logger.info("Caller is not qualified. No data will be sent.")
+        logger.warning("TD_UUID is missing. Cannot send data.")
         return jsonify({
-            "status": "success", 
-            "message": "Caller is not qualified",
-            "qualified": False,
+            "status": "error", 
+            "message": "TD_UUID is missing",
             "data_sent": False
-        }), 200
-
+        }), 400
 
 def qualify_lead(financial_data):
     logger.info("Qualifying lead")

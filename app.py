@@ -184,7 +184,7 @@ def handle_extract_caller_info(data, td_uuid, category, subdomain):
         return jsonify(response), 200
   
 
-def handle_send_financial_details(parameters, td_uuid=None, subdomain=None):
+def handle_send_financial_details(parameters, td_uuid, subdomain):
     logger.info(f"Handling sendFinancialDetails - TD_UUID: {td_uuid}, Subdomain: {subdomain}")
     financial_data = {
         "debtAmount": parameters.get('debtAmount'),
@@ -196,7 +196,14 @@ def handle_send_financial_details(parameters, td_uuid=None, subdomain=None):
 
     logger.info(f"Received financial data: {json.dumps(financial_data, indent=2)}")
 
-    # Use default values if td_uuid or subdomain are missing
+    if not td_uuid:
+        logger.error("Missing TD_UUID. Cannot send keypress.")
+        return jsonify({
+            "status": "error", 
+            "message": "Missing TD_UUID. Cannot send keypress.",
+            "data_sent": False
+        }), 400
+
     subdomain = subdomain or "global-telcom-investors"
 
     logger.info(f"Using TD_UUID: {td_uuid}, Subdomain: {subdomain}")
@@ -218,43 +225,9 @@ def handle_send_financial_details(parameters, td_uuid=None, subdomain=None):
             "data_sent": False
         }), 500
 
-def send_trackdrive_keypress(td_uuid, keypress, subdomain, financial_data=None):
-    logger.info(f"Attempting to send TrackDrive keypress and data. TD_UUID: {td_uuid}, Keypress: {keypress}, Subdomain: {subdomain}")
-    url = "https://trackdrive.com/api/v1/calls/send_key_press"
-    
-    # Combine and encode the public and private keys
-    auth_string = f"{TRACKDRIVE_PUBLIC_KEY}:{TRACKDRIVE_PRIVATE_KEY}"
-    encoded_auth = base64.b64encode(auth_string.encode()).decode()
-    
-    headers = {
-        "Content-Type": "application/json",
-        "Authorization": f"Basic {encoded_auth}",
-        "X-Trackdrive-Subdomain": subdomain  # Add subdomain as a custom header
-    }
-    
-    payload = {
-        "id": td_uuid or "12345",
-        "digits": keypress,
-        "data": financial_data,
-        "subdomain": subdomain  # Include subdomain in the payload as well
-    }
 
-    try:
-        logger.info(f"Sending POST request to TrackDrive API. URL: {url}, Payload: {json.dumps(payload)}")
-        response = requests.post(url, headers=headers, json=payload)
-        response.raise_for_status()
-        logger.info(f"TrackDrive API response: Status Code {response.status_code}, Content: {response.text}")
-        logger.info(f"Keypress and data sent successfully")
-        return True
-    except requests.RequestException as e:
-        logger.error(f"Failed to send keypress and data: {str(e)}")
-        if hasattr(e, 'response') and e.response is not None:
-            logger.error(f"Response content: {e.response.content}")
-        return False
-# In the handle_incoming_call function, update the call to handle_send_financial_details:
 
-    
-
+# In the handle_incoming_call function,
 def qualify_lead(financial_data):
     logger.info("Qualifying lead")
     is_qualified = (
@@ -269,6 +242,14 @@ def handle_send_keypress(parameters, td_uuid, subdomain, financial_data=None):
     logger.info(f"Handling sendKeypress - TD_UUID: {td_uuid}, Subdomain: {subdomain}")
     keypress = parameters.get('keypress')
     logger.info(f"TD_UUID: {td_uuid}, Keypress: {keypress}")
+
+    if not td_uuid:
+        logger.error("Missing TD_UUID. Cannot send keypress.")
+        return jsonify({
+            "status": "error", 
+            "message": "Missing TD_UUID. Cannot send keypress.",
+            "data_sent": False
+        }), 400
 
     if not td_uuid or not subdomain:
         logger.error("Missing required parameters: td_uuid or subdomain")
@@ -327,7 +308,6 @@ def send_trackdrive_keypress(td_uuid, keypress, subdomain, financial_data=None):
     
     url = f"https://{subdomain}.trackdrive.com/api/v1/calls/send_key_press"
     
-    # Combine and encode the public and private keys
     auth_string = f"{TRACKDRIVE_PUBLIC_KEY}:{TRACKDRIVE_PRIVATE_KEY}"
     encoded_auth = base64.b64encode(auth_string.encode()).decode()
     
@@ -335,6 +315,9 @@ def send_trackdrive_keypress(td_uuid, keypress, subdomain, financial_data=None):
         "Content-Type": "application/json",
         "Authorization": f"Basic {encoded_auth}"
     }
+    if not td_uuid:
+        logger.error("Missing TD_UUID. Cannot send keypress to TrackDrive.")
+        return False
     
     payload = {
         "id": td_uuid,
@@ -357,39 +340,9 @@ def send_trackdrive_keypress(td_uuid, keypress, subdomain, financial_data=None):
             logger.error(f"Response status code: {e.response.status_code}")
             logger.error(f"Response content: {e.response.content}")
         return False
-def schedule_trackdrive_callback(schedule_id, caller_id, callback_time, timezone, subdomain):
-    logger.info(f"Attempting to schedule TrackDrive callback. Schedule ID: {schedule_id}, Caller ID: {caller_id}")
     
-    url = f"https://{subdomain}.trackdrive.com/api/v1/scheduled_callbacks"
-    
-    auth_string = f"{TRACKDRIVE_PUBLIC_KEY}:{TRACKDRIVE_PRIVATE_KEY}"
-    encoded_auth = base64.b64encode(auth_string.encode()).decode()
-    
-    headers = {
-        "Content-Type": "application/json",
-        "Authorization": f"Basic {encoded_auth}"
-    }
-    
-    payload = {
-        "place_call_at": callback_time.strftime("%Y-%m-%d %H:%M"),
-        "place_call_time_zone": timezone,
-        "schedule_id": schedule_id,
-        "to": caller_id
-    }
 
-    try:
-        logger.info(f"Sending POST request to TrackDrive API. URL: {url}, Payload: {json.dumps(payload)}")
-        response = requests.post(url, headers=headers, json=payload)
-        response.raise_for_status()
-        logger.info(f"TrackDrive API response: Status Code {response.status_code}, Content: {response.text}")
-        logger.info(f"Callback scheduled successfully")
-        return True
-    except requests.RequestException as e:
-        logger.error(f"Failed to schedule callback: {str(e)}")
-        if hasattr(e, 'response') and e.response is not None:
-            logger.error(f"Response status code: {e.response.status_code}")
-            logger.error(f"Response content: {e.response.content}")
-        return False
+
 
 if __name__ == '__main__':
     logger.info("Starting cache refresh thread")

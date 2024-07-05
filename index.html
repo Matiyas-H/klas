@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Call Processing Form</title>
+</head>
+<body>
+    <h1>Call Data Input</h1>
+    <form id="callForm">
+        <label for="debtType">Debt Type:</label>
+        <input type="text" id="debtType" name="debtType" required><br><br>
+
+        <label for="debtAmount">Debt Amount:</label>
+        <input type="number" id="debtAmount" name="debtAmount" required><br><br>
+
+        <label for="monthlyIncome">Monthly Income:</label>
+        <input type="number" id="monthlyIncome" name="monthlyIncome" required><br><br>
+
+        <label for="hasCheckingAccount">Has Checking Account:</label>
+        <input type="checkbox" id="hasCheckingAccount" name="hasCheckingAccount"><br><br>
+
+        <label for="keypress">Keypress:</label>
+        <input type="text" id="keypress" name="keypress" value="*" required><br><br>
+
+        <button type="button" onclick="submitCallData()">Submit</button>
+    </form>
+
+    <script>
+        function submitCallData() {
+            const formData = {
+                debtType: document.getElementById('debtType').value,
+                debtAmount: parseInt(document.getElementById('debtAmount').value),
+                monthlyIncome: parseInt(document.getElementById('monthlyIncome').value),
+                hasCheckingAccount: document.getElementById('hasCheckingAccount').checked,
+                keypress: document.getElementById('keypress').value
+            };
+
+            fetch('http://localhost:5000/process_call', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify(formData)
+            })
+            .then(response => response.json())
+            .then(data => {
+                console.log(data);
+                alert('Success: ' + JSON.stringify(data));
+            })
+            .catch((error) => {
+                console.error('Error:', error);
+                alert('An error occurred. Please check the console for details.');
+            });
+        }
+    </script>
+</body>
+</html>
