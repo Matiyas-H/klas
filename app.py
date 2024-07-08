@@ -73,14 +73,14 @@ def handle_incoming_call():
         logger.info("Handling assistant-request")
         response = {
             "assistant": {
-                "firstMessage": "Hi, thanks for calling in. My name is Jessica Miller. How can I assist you today?",
+                "firstMessage": "Hello, thank you for calling to Hardship Debt Relief program, and who do I have the pleasure of speaking with? ",
                 "model": {
                     "provider": "openai",
                     "model": "gpt-3.5-turbo",
                     "messages": [
                         {
                             "role": "system",
-                            "content": "You are a helpful assistant. When a call is received, trigger the extractCallerInfo function and use the extracted information to personalize the conversation. Do not ask for the phone number, you have it already"
+                            "content": "You are an experienced lead qualifier for a hardship debt relief program. Your primary goal is to qualify callers for the program efficiently and empathetically, YOU MUST START FROM THE MANDATORY INTRODUCTION WE HAVE PROVIDED, IT'S VERY VERY IMPORTANT. Follow these instructions strictly, Call sendFinancialDetails function with collected data, and when the user agreed to transfer. Remember: Do not make any function calls until the very end of the qualification process, and only use sendFinancialDetails when transferring a qualified caller who has agreed to speak with a specialist."
                         }
                     ],
                     "functions": [
