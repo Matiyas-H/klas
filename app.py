@@ -21,10 +21,10 @@ app = Flask(__name__)
 
 logger.info("Starting application")
 
-SERVER_SECRET = "s3cr3tK3yExAmpl3SecReT"
-TEXTBACK_API_URL = "https://api.textback.ai/swagger-ui/index.html#/contact-resource/findPhoneForUser"
-TEXTBACK_API_TOKEN = "QJ0fzQzwBlx2DfqfRZpopS2NPYoQV7nE"
-TEXTBACK_API_SECRET = "PfVq2I-5Js4="
+SERVER_SECRET = os.getenv('SERVER_SECRET')
+TEXTBACK_API_URL = os.getenv('TEXTBACK_API_URL')
+TEXTBACK_API_TOKEN = os.getenv('TEXTBACK_API_TOKEN')
+TEXTBACK_API_SECRET = os.getenv('TEXTBACK_API_SECRET')
 TRACKDRIVE_PUBLIC_KEY = os.getenv('TRACKDRIVE_PUBLIC_KEY')
 TRACKDRIVE_PRIVATE_KEY = os.getenv('TRACKDRIVE_PRIVATE_KEY')
 
@@ -85,6 +85,22 @@ def handle_incoming_call():
                     ],
                     "functions": [
                         {
+                            "name": "extractCallerInfo",
+                            "description": "Extracts the caller's information for personalization.",
+                            "parameters": {
+                                "type": "object",
+                                "properties": {
+                                    "td_uuid": {"type": "string", "description": "Unique Call ID from TrackDrive"},
+                                    "caller_id": {"type": "string", "description": "Caller's phone number from TrackDrive"},
+                                    "from": {"type": "string", "description": "Caller's phone number from Twilio"},
+                                    "callSid": {"type": "string", "description": "Caller's sid from Twilio"},
+                                    "category": {"type": "string", "description": "Type of call (inbound, outbound, or scheduled_callback)"},
+                                    "schedule_id": {"type": "string", "description": "ID for scheduled callbacks"}
+                                },
+                                "required": ["td_uuid", "category"]
+                            }
+                        },
+                        {
                             "name": "sendFinancialDetails",
                             "description": "Sends collected financial details to the server.",
                             "parameters": {
@@ -94,12 +110,23 @@ def handle_incoming_call():
                                     "debtType": {"type": "string", "description": "Type of debt (e.g., credit card, student loan)."},
                                     "monthlyIncome": {"type": "number", "description": "Monthly income of the caller."},
                                     "hasCheckingAccount": {"type": "boolean", "description": "Whether the caller has a checking account."},
-                                    "employmentStatus": {"type": "string", "description": "Current employment status."},
-                                    "subdomain": {"type": "string", "description": "Subdomain for TrackDrive API calls"}
+                                    "employmentStatus": {"type": "string", "description": "Current employment status."}
                                 },
-                                "required": ["debtAmount", "debtType", "monthlyIncome", "hasCheckingAccount", "employmentStatus", "subdomain"]
+                                "required": ["debtAmount", "debtType", "monthlyIncome", "hasCheckingAccount", "employmentStatus"]
                             }
                         },
+                        {
+                            "name": "sendKeypress",
+                            "description": "Sends a keypress to TrackDrive.",
+                            "parameters": {
+                                "type": "object",
+                                "properties": {
+                                    "td_uuid": {"type": "string", "description": "Unique Call ID from TrackDrive"},
+                                    "keypress": {"type": "string", "description": "Keypress to send (e.g., '*', '#', '6', '7', '8', '9', '0')"}
+                                },
+                                "required": ["td_uuid", "keypress"]
+                            }
+                        }
                     ]
                 }
             }
