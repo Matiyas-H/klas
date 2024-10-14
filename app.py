@@ -3,7 +3,7 @@ import requests
 from requests.adapters import HTTPAdapter
 import os
 from dotenv import load_dotenv
-from requests.packages.urllib3.util.retry import Retry
+from urllib3.util.retry import Retry 
 import logging
 from cachetools import TTLCache, cached
 from time import time
@@ -27,7 +27,7 @@ TEXTBACK_API_TOKEN = os.getenv('TEXTBACK_API_TOKEN')
 TEXTBACK_API_SECRET = os.getenv('TEXTBACK_API_SECRET')
 TRACKDRIVE_PUBLIC_KEY = os.getenv('TRACKDRIVE_PUBLIC_KEY')
 TRACKDRIVE_PRIVATE_KEY = os.getenv('TRACKDRIVE_PRIVATE_KEY')
-
+OMNIA_VOICE_API_KEY = os.getenv('OMNIA_VOICE_API_KEY')
 logger.info("Loaded environment variables")
 
 session = requests.Session()
@@ -44,6 +44,41 @@ session.mount('https://', adapter)
 cache = TTLCache(maxsize=1000, ttl=86400)
 
 logger.info("Configured session and cache")
+
+caller_info_storage = {}
+
+def fetch_omnia_voice_data(phone_number):
+    url = "https://api.omnia-voice.com/api/incoming"
+    headers = {
+        "X-API-Key": OMNIA_VOICE_API_KEY,
+        "Content-Type": "application/json"
+    }
+    payload = {
+        "caller_phone_number": phone_number,
+        "caller_first_name": "",
+        "caller_last_name": ""
+    }
+    
+    try:
+        response = requests.post(url, json=payload, headers=headers)
+        response.raise_for_status()
+        return response.json()
+    except requests.RequestException as e:
+        logger.error(f"Failed to fetch data from Omnia Voice API: {str(e)}")
+        return None
+
+
+def store_caller_info(td_uuid, phone_number, info):
+    key = f"{td_uuid}_{phone_number}"
+    caller_info_storage[key] = info
+    logger.info(f"Stored caller info for TD_UUID: {td_uuid}, Phone: {phone_number}")
+
+def get_stored_caller_info(td_uuid, phone_number):
+    key = f"{td_uuid}_{phone_number}"
+    info = caller_info_storage.get(key, {})
+    if not info:
+        logger.warning(f"No stored caller info found for TD_UUID: {td_uuid}, Phone: {phone_number}")
+    return info
 
 @app.route('/handle_incoming_call', methods=['POST'])
 def handle_incoming_call():
@@ -173,6 +208,9 @@ def handle_extract_caller_info(data, td_uuid, category, subdomain):
     caller_info = get_contact_info(from_number)
     logger.info(f"Processed caller info: {json.dumps(caller_info, indent=2)}")
 
+    # Store the caller info for later use
+    store_caller_info(td_uuid, from_number, caller_info)
+
     if caller_info:
         first_name = caller_info.get('firstName', '')
         last_name = caller_info.get('lastName', '')
@@ -211,7 +249,7 @@ def handle_extract_caller_info(data, td_uuid, category, subdomain):
         return jsonify(response), 200
   
 
-def handle_send_financial_details(parameters, td_uuid, subdomain):
+def handle_send_financial_details(parameters, td_uuid, subdomain, data):
     logger.info(f"Handling sendFinancialDetails - TD_UUID: {td_uuid}, Subdomain: {subdomain}")
     financial_data = {
         "debtAmount": parameters.get('debtAmount'),
@@ -223,29 +261,37 @@ def handle_send_financial_details(parameters, td_uuid, subdomain):
 
     logger.info(f"Received financial data: {json.dumps(financial_data, indent=2)}")
 
-    if not td_uuid:
-        logger.error("Missing TD_UUID. Cannot send keypress.")
+    call_object = data.get('message', {}).get('call', {})
+    from_number = call_object.get('customer', {}).get('number')
+
+    if not td_uuid or not from_number:
+        logger.error("Missing TD_UUID or phone number. Cannot send financial details.")
         return jsonify({
             "status": "error", 
-            "message": "Missing TD_UUID. Cannot send keypress.",
+            "message": "Missing TD_UUID or phone number. Cannot send financial details.",
             "data_sent": False
         }), 400
 
-    subdomain = subdomain or "global-telcom-investors"
+    caller_info = get_stored_caller_info(td_uuid, from_number)
+    
+    combined_data = {
+        **caller_info,
+        "financial_data": financial_data,
+        "td_uuid": td_uuid,
+        "phone_number": from_number
+    }
 
-    logger.info(f"Using TD_UUID: {td_uuid}, Subdomain: {subdomain}")
-
-    logger.info("Attempting to send keypress and financial data.")
-    success = send_trackdrive_keypress(td_uuid, '*', subdomain, financial_data)
+    logger.info(f"Attempting to send keypress and financial data for TD_UUID: {td_uuid}, Phone: {from_number}")
+    success = send_trackdrive_keypress(td_uuid, '*', subdomain, combined_data)
     if success:
-        logger.info(f"Keypress '*' and financial data sent successfully")
+        logger.info(f"Keypress '*' and financial data sent successfully for TD_UUID: {td_uuid}")
         return jsonify({
             "status": "success", 
             "message": "Keypress and financial data sent",
             "data_sent": True
         }), 200
     else:
-        logger.warning(f"Failed to send keypress '*' and financial data")
+        logger.warning(f"Failed to send keypress '*' and financial data for TD_UUID: {td_uuid}")
         return jsonify({
             "status": "error", 
             "message": "Failed to send keypress and financial data",
@@ -330,7 +376,7 @@ def get_contact_info(phone_number):
 
 import base64
 
-def send_trackdrive_keypress(td_uuid, keypress, subdomain, financial_data=None):
+def send_trackdrive_keypress(td_uuid, keypress, subdomain, combined_data=None):
     logger.info(f"Attempting to send TrackDrive keypress and data. TD_UUID: {td_uuid}, Keypress: {keypress}, Subdomain: {subdomain}")
     
     url = f"https://{subdomain}.trackdrive.com/api/v1/calls/send_key_press"
@@ -342,6 +388,7 @@ def send_trackdrive_keypress(td_uuid, keypress, subdomain, financial_data=None):
         "Content-Type": "application/json",
         "Authorization": f"Basic {encoded_auth}"
     }
+
     if not td_uuid:
         logger.error("Missing TD_UUID. Cannot send keypress to TrackDrive.")
         return False
@@ -351,18 +398,18 @@ def send_trackdrive_keypress(td_uuid, keypress, subdomain, financial_data=None):
         "digits": keypress,
     }
     
-    if financial_data:
-        payload["data"] = financial_data
+    if combined_data:
+        payload["data"] = combined_data
 
     try:
         logger.info(f"Sending POST request to TrackDrive API. URL: {url}, Payload: {json.dumps(payload)}")
         response = requests.post(url, headers=headers, json=payload)
         response.raise_for_status()
         logger.info(f"TrackDrive API response: Status Code {response.status_code}, Content: {response.text}")
-        logger.info(f"Keypress and data sent successfully")
+        logger.info(f"Keypress and data sent successfully for TD_UUID: {td_uuid}")
         return True
     except requests.RequestException as e:
-        logger.error(f"Failed to send keypress and data: {str(e)}")
+        logger.error(f"Failed to send keypress and data for TD_UUID: {td_uuid}. Error: {str(e)}")
         if hasattr(e, 'response') and e.response is not None:
             logger.error(f"Response status code: {e.response.status_code}")
             logger.error(f"Response content: {e.response.content}")
