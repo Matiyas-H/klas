@@ -180,7 +180,7 @@ def handle_incoming_call():
         if function_name == 'extractCallerInfo':
             return handle_extract_caller_info(data, td_uuid, category, subdomain)
         elif function_name == 'sendFinancialDetails':
-            return handle_send_financial_details(parameters, td_uuid, subdomain, data)
+            return handle_send_financial_details(parameters, td_uuid, subdomain)
         elif function_name == 'sendKeypress':
             financial_data = parameters.get('financial_data', {})  
             return send_trackdrive_keypress(parameters, td_uuid, subdomain, financial_data)
@@ -261,20 +261,24 @@ def handle_send_financial_details(parameters, td_uuid, subdomain):
 
     logger.info(f"Received financial data: {json.dumps(financial_data, indent=2)}")
 
-    if not td_uuid:
-        logger.error("Missing TD_UUID. Cannot send financial details.")
+    call_object = data.get('message', {}).get('call', {})
+    from_number = call_object.get('customer', {}).get('number')
+
+    if not td_uuid or not from_number:
+        logger.error("Missing TD_UUID or phone number. Cannot send financial details.")
         return jsonify({
             "status": "error", 
-            "message": "Missing TD_UUID. Cannot send financial details.",
+            "message": "Missing TD_UUID or phone number. Cannot send financial details.",
             "data_sent": False
         }), 400
 
     combined_data = {
         "financial_data": financial_data,
-        "td_uuid": td_uuid
+        "td_uuid": td_uuid,
+        "phone_number": from_number
     }
 
-    logger.info(f"Attempting to send keypress and financial data for TD_UUID: {td_uuid}")
+    logger.info(f"Attempting to send keypress and financial data for TD_UUID: {td_uuid}, Phone: {from_number}")
     success = send_trackdrive_keypress(td_uuid, '*', subdomain, combined_data)
     if success:
         logger.info(f"Keypress '*' and financial data sent successfully for TD_UUID: {td_uuid}")
