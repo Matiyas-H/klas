@@ -180,7 +180,7 @@ def handle_incoming_call():
         if function_name == 'extractCallerInfo':
             return handle_extract_caller_info(data, td_uuid, category, subdomain)
         elif function_name == 'sendFinancialDetails':
-            return handle_send_financial_details(parameters, td_uuid, subdomain)
+            return handle_send_financial_details(parameters, td_uuid, subdomain, data)
         elif function_name == 'sendKeypress':
             financial_data = parameters.get('financial_data', {})  
             return send_trackdrive_keypress(parameters, td_uuid, subdomain, financial_data)
@@ -249,7 +249,7 @@ def get_or_fetch_caller_info(td_uuid, from_number):
     
     return caller_info
 
-def handle_send_financial_details(parameters, td_uuid, subdomain):
+def handle_send_financial_details(parameters, td_uuid, subdomain, data):
     logger.info(f"Handling sendFinancialDetails - TD_UUID: {td_uuid}, Subdomain: {subdomain}")
     financial_data = {
         "debtAmount": parameters.get('debtAmount'),
