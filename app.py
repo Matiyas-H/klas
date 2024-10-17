@@ -205,49 +205,49 @@ def handle_extract_caller_info(data, td_uuid, category, subdomain):
         logger.warning("No valid phone number provided")
         return jsonify({"error": "No valid phone number provided"}), 400
 
-    caller_info = get_contact_info(from_number)
+    caller_info = get_or_fetch_caller_info(td_uuid, from_number)
     logger.info(f"Processed caller info: {json.dumps(caller_info, indent=2)}")
 
-    # Store the caller info for later use
-    store_caller_info(td_uuid, from_number, caller_info)
-
+    # Prepare response
     if caller_info:
         first_name = caller_info.get('firstName', '')
         last_name = caller_info.get('lastName', '')
         state = caller_info.get('state', '')
         
-        if first_name or last_name:
-            personalized_message = f"Hi {first_name} {last_name}"
-            if state:
-                personalized_message += f" from {state}"
-            personalized_message += ", how can I assist you today?"
-        else:
-            personalized_message = "Hello, how can I assist you today?"
-
-        response = {
-            "result": {
-                "personalized_message": personalized_message,
-                "caller_info": caller_info,
-                "td_uuid": td_uuid,
-                "category": category,
-                "subdomain": subdomain
-            }
-        }
-        logger.info(f"Returning personalized response: {json.dumps(response, indent=2)}")
-        return jsonify(response), 200
+        personalized_message = f"Hi {first_name} {last_name}"
+        if state:
+            personalized_message += f" from {state}"
+        personalized_message += ", how can I assist you today?"
     else:
-        logger.warning(f"No caller info found for: {from_number}")
-        response = {
-            "result": {
-                "message": f"Unable to personalize greeting for: {from_number}",
-                "caller": from_number,
-                "td_uuid": td_uuid,
-                "category": category,
-                "subdomain": subdomain
-            }
+        personalized_message = "Hello, how can I assist you today?"
+
+    response = {
+        "result": {
+            "personalized_message": personalized_message,
+            "caller_info": caller_info,
+            "td_uuid": td_uuid,
+            "category": category,
+            "subdomain": subdomain
         }
-        return jsonify(response), 200
-  
+    }
+    logger.info(f"Returning personalized response: {json.dumps(response, indent=2)}")
+    return jsonify(response), 200
+
+def get_or_fetch_caller_info(td_uuid, from_number):
+    caller_info = get_stored_caller_info(td_uuid, from_number)
+    if not caller_info:
+        logger.info(f"No stored caller info found for {from_number}. Fetching from API.")
+        caller_info = get_contact_info(from_number)
+        if not caller_info:
+            logger.info(f"No contact info found. Fetching from Omnia Voice API.")
+            caller_info = fetch_omnia_voice_data(from_number)
+        
+        if caller_info:
+            store_caller_info(td_uuid, from_number, caller_info)
+        else:
+            logger.warning(f"Failed to fetch caller info for {from_number}")
+    
+    return caller_info
 
 def handle_send_financial_details(parameters, td_uuid, subdomain, data):
     logger.info(f"Handling sendFinancialDetails - TD_UUID: {td_uuid}, Subdomain: {subdomain}")
@@ -255,8 +255,9 @@ def handle_send_financial_details(parameters, td_uuid, subdomain, data):
         "debtAmount": parameters.get('debtAmount'),
         "debtType": parameters.get('debtType'),
         "monthlyIncome": parameters.get('monthlyIncome'),
+        "hasCheckingAccount": parameters.get('hasCheckingAccount'),
         "alreadyEnrolledAnyOtherProgram": parameters.get('alreadyEnrolledAnyOtherProgram')
-}
+    }
 
     logger.info(f"Received financial data: {json.dumps(financial_data, indent=2)}")
 
@@ -271,10 +272,10 @@ def handle_send_financial_details(parameters, td_uuid, subdomain, data):
             "data_sent": False
         }), 400
 
-    caller_info = get_stored_caller_info(td_uuid, from_number)
+    caller_info = get_or_fetch_caller_info(td_uuid, from_number)
     
     combined_data = {
-        **caller_info,
+        **(caller_info or {}),
         "financial_data": financial_data,
         "td_uuid": td_uuid,
         "phone_number": from_number
