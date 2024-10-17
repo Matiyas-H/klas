@@ -379,7 +379,7 @@ import base64
 def send_trackdrive_keypress(td_uuid, keypress, subdomain="global-telecom-investors", combined_data=None):
     logger.info(f"Attempting to send TrackDrive keypress and data. TD_UUID: {td_uuid}, Keypress: {keypress}, Subdomain: {subdomain}")
     
-    url = f"https://{subdomain}.trackdrive.com/api/v1/calls/send_key_press"
+    url = f"https://global-telecom-investors.trackdrive.com/api/v1/calls/send_key_press"
     
     auth_string = f"{TRACKDRIVE_PUBLIC_KEY}:{TRACKDRIVE_PRIVATE_KEY}"
     encoded_auth = base64.b64encode(auth_string.encode()).decode()
