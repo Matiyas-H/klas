@@ -376,7 +376,7 @@ def get_contact_info(phone_number):
 
 import base64
 
-def send_trackdrive_keypress(td_uuid, keypress, subdomain, combined_data=None):
+def send_trackdrive_keypress(td_uuid, keypress, subdomain="global-telecom-investors", combined_data=None):
     logger.info(f"Attempting to send TrackDrive keypress and data. TD_UUID: {td_uuid}, Keypress: {keypress}, Subdomain: {subdomain}")
     
     url = f"https://{subdomain}.trackdrive.com/api/v1/calls/send_key_press"
