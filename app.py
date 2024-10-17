@@ -180,7 +180,7 @@ def handle_incoming_call():
         if function_name == 'extractCallerInfo':
             return handle_extract_caller_info(data, td_uuid, category, subdomain)
         elif function_name == 'sendFinancialDetails':
-            return handle_send_financial_details(parameters, td_uuid, subdomain)
+            return handle_send_financial_details(parameters, td_uuid, subdomain, data)
         elif function_name == 'sendKeypress':
             financial_data = parameters.get('financial_data', {})  
             return send_trackdrive_keypress(parameters, td_uuid, subdomain, financial_data)
@@ -255,9 +255,8 @@ def handle_send_financial_details(parameters, td_uuid, subdomain, data):
         "debtAmount": parameters.get('debtAmount'),
         "debtType": parameters.get('debtType'),
         "monthlyIncome": parameters.get('monthlyIncome'),
-        "hasCheckingAccount": parameters.get('hasCheckingAccount'),
-        "employmentStatus": parameters.get('employmentStatus')
-    }
+        "alreadyEnrolledAnyOtherProgram": parameters.get('alreadyEnrolledAnyOtherProgram')
+}
 
     logger.info(f"Received financial data: {json.dumps(financial_data, indent=2)}")
 
