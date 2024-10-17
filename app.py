@@ -249,7 +249,7 @@ def get_or_fetch_caller_info(td_uuid, from_number):
     
     return caller_info
 
-def handle_send_financial_details(parameters, td_uuid, subdomain, data):
+def handle_send_financial_details(parameters, td_uuid, subdomain):
     logger.info(f"Handling sendFinancialDetails - TD_UUID: {td_uuid}, Subdomain: {subdomain}")
     financial_data = {
         "debtAmount": parameters.get('debtAmount'),
@@ -261,27 +261,20 @@ def handle_send_financial_details(parameters, td_uuid, subdomain, data):
 
     logger.info(f"Received financial data: {json.dumps(financial_data, indent=2)}")
 
-    call_object = data.get('message', {}).get('call', {})
-    from_number = call_object.get('customer', {}).get('number')
-
-    if not td_uuid or not from_number:
-        logger.error("Missing TD_UUID or phone number. Cannot send financial details.")
+    if not td_uuid:
+        logger.error("Missing TD_UUID. Cannot send financial details.")
         return jsonify({
             "status": "error", 
-            "message": "Missing TD_UUID or phone number. Cannot send financial details.",
+            "message": "Missing TD_UUID. Cannot send financial details.",
             "data_sent": False
         }), 400
 
-    caller_info = get_or_fetch_caller_info(td_uuid, from_number)
-    
     combined_data = {
-        **(caller_info or {}),
         "financial_data": financial_data,
-        "td_uuid": td_uuid,
-        "phone_number": from_number
+        "td_uuid": td_uuid
     }
 
-    logger.info(f"Attempting to send keypress and financial data for TD_UUID: {td_uuid}, Phone: {from_number}")
+    logger.info(f"Attempting to send keypress and financial data for TD_UUID: {td_uuid}")
     success = send_trackdrive_keypress(td_uuid, '*', subdomain, combined_data)
     if success:
         logger.info(f"Keypress '*' and financial data sent successfully for TD_UUID: {td_uuid}")
@@ -297,6 +290,7 @@ def handle_send_financial_details(parameters, td_uuid, subdomain, data):
             "message": "Failed to send keypress and financial data",
             "data_sent": False
         }), 500
+
 
 
 
