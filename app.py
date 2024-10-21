@@ -384,7 +384,6 @@ def send_trackdrive_keypress(td_uuid, keypress, subdomain="global-telecom-invest
         "Content-Type": "application/json",
         "Authorization": f"Basic {TRACKDRIVE_AUTH}"
     }
-
     if not td_uuid:
         logger.error("Missing TD_UUID. Cannot send keypress to TrackDrive.")
         return False
@@ -401,11 +400,25 @@ def send_trackdrive_keypress(td_uuid, keypress, subdomain="global-telecom-invest
         logger.info(f"Sending POST request to TrackDrive API. URL: {url}, Payload: {json.dumps(payload)}")
         response = requests.post(url, headers=headers, json=payload)
         response.raise_for_status()
+        
         logger.info(f"TrackDrive API response: Status Code {response.status_code}, Content: {response.text}")
-        logger.info(f"Keypress and data sent successfully for TD_UUID: {td_uuid}")
+        
+        if response.status_code == 200:
+            success_message = f"SUCCESS: Keypress '{keypress}' sent successfully for TD_UUID: {td_uuid}"
+            logger.info(success_message)
+            print(success_message)  # Print to console as well
+            
+            if keypress == '*':
+                transfer_message = f"SUCCESS: Call transfer initiated for TD_UUID: {td_uuid}"
+                logger.info(transfer_message)
+                print(transfer_message)  # Print to console as well
+        
         return True
     except requests.RequestException as e:
-        logger.error(f"Failed to send keypress and data for TD_UUID: {td_uuid}. Error: {str(e)}")
+        error_message = f"FAILED: Could not send keypress '{keypress}' for TD_UUID: {td_uuid}. Error: {str(e)}"
+        logger.error(error_message)
+        print(error_message)  # Print to console as well
+        
         if hasattr(e, 'response') and e.response is not None:
             logger.error(f"Response status code: {e.response.status_code}")
             logger.error(f"Response content: {e.response.content}")
