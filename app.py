@@ -28,7 +28,7 @@ TEXTBACK_API_SECRET = os.getenv('TEXTBACK_API_SECRET')
 TRACKDRIVE_PUBLIC_KEY = os.getenv('TRACKDRIVE_PUBLIC_KEY')
 TRACKDRIVE_PRIVATE_KEY = os.getenv('TRACKDRIVE_PRIVATE_KEY')
 OMNIA_VOICE_API_KEY = os.getenv('OMNIA_VOICE_API_KEY')
-TRACKDRIVE_AUTH = getenv('TRACKDRIVE_AUTH')
+TRACKDRIVE_AUTH = os.getenv('TRACKDRIVE_AUTH')
 logger.info("Loaded environment variables")
 
 session = requests.Session()
