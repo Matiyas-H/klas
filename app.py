@@ -99,7 +99,7 @@ def handle_incoming_call():
     logger.info(f"Message Type: {message_type}")
 
     call_data = data.get('message', {}).get('call', {})
-    td_uuid = call_data.get('td_uuid') or "1234"
+    td_uuid = call_data.get('id') or "1234"
     category = call_data.get('category')
     subdomain = call_data.get('subdomain')
 
@@ -384,24 +384,34 @@ def send_trackdrive_keypress(td_uuid, keypress, subdomain="global-telecom-invest
         "Content-Type": "application/json",
         "Authorization": f"Basic {TRACKDRIVE_AUTH}"
     }
+    
     if not td_uuid:
         logger.error("Missing TD_UUID. Cannot send keypress to TrackDrive.")
         return False
     
     payload = {
-        "id": td_uuid,
+        "id": str(td_uuid),  # Convert to string to ensure correct format
         "digits": keypress,
     }
     
     if combined_data:
         payload["data"] = combined_data
 
+    # Detailed logging of the complete request
+    logger.info("Complete TrackDrive API Request:")
+    logger.info(f"URL: {url}")
+    logger.info(f"Headers: {json.dumps(headers, indent=2)}")
+    logger.info(f"Payload: {json.dumps(payload, indent=2)}")
+
     try:
         logger.info(f"Sending POST request to TrackDrive API. URL: {url}, Payload: {json.dumps(payload)}")
         response = requests.post(url, headers=headers, json=payload)
-        response.raise_for_status()
         
-        logger.info(f"TrackDrive API response: Status Code {response.status_code}, Content: {response.text}")
+        # Log the response details
+        logger.info(f"TrackDrive API response: Status Code {response.status_code}")
+        logger.info(f"Response Content: {response.text}")
+        
+        response.raise_for_status()
         
         if response.status_code == 200:
             success_message = f"SUCCESS: Keypress '{keypress}' sent successfully for TD_UUID: {td_uuid}"
