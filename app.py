@@ -28,6 +28,7 @@ TEXTBACK_API_SECRET = os.getenv('TEXTBACK_API_SECRET')
 TRACKDRIVE_PUBLIC_KEY = os.getenv('TRACKDRIVE_PUBLIC_KEY')
 TRACKDRIVE_PRIVATE_KEY = os.getenv('TRACKDRIVE_PRIVATE_KEY')
 OMNIA_VOICE_API_KEY = os.getenv('OMNIA_VOICE_API_KEY')
+
 logger.info("Loaded environment variables")
 
 session = requests.Session()
@@ -384,7 +385,7 @@ def send_trackdrive_keypress(td_uuid, keypress, subdomain="global-telecom-invest
     
     headers = {
         "Content-Type": "application/json",
-        "Authorization": f"Basic {encoded_auth}"
+        "Authorization": "Basic dGRwdWJhMTNiZTI5YjM1Yzg1OWRkNDIxYWVjYjk5MDVlMzBkNzp0ZHBydjUwNmRhNjVhMjA5NzJiNjE1NDM0NjQ0MmI1YzU1MTE4NDZhZjdkMDY=”
     }
 
     if not td_uuid:
