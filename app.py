@@ -99,7 +99,7 @@ def handle_incoming_call():
     logger.info(f"Message Type: {message_type}")
 
     call_data = data.get('message', {}).get('call', {})
-    td_uuid = call_data.get('id')
+    td_uuid = call_data.get('td_uuid')
     category = call_data.get('category')
     subdomain = call_data.get('subdomain')
 
