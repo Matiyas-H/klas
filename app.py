@@ -379,7 +379,7 @@ def send_trackdrive_keypress(td_uuid, keypress, subdomain="global-telecom-invest
     logger.info(f"Attempting to send TrackDrive keypress and data. TD_UUID: {td_uuid}, Keypress: {keypress}, Subdomain: {subdomain}")
     
     url = "https://global-telecom-investors.trackdrive.com/api/v1/calls/send_key_press"
-    
+    auth_string = f"{TRACKDRIVE_PUBLIC_KEY}:{TRACKDRIVE_PRIVATE_KEY}"
     headers = {
         "Content-Type": "application/json",
         "Authorization": f"Basic {TRACKDRIVE_AUTH}"
