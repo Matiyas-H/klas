@@ -1,4 +1,4 @@
-import datetime
+from datetime import datetime
 from flask import Flask, request, jsonify, abort
 import requests
 from requests.adapters import HTTPAdapter
@@ -184,17 +184,7 @@ def handle_send_financial_details(parameters, td_uuid, subdomain, data):
 
     # Fetch webhook data using phone number
     webhook_data = fetch_webhook_data(from_number)
-    if not webhook_data:
-        logger.error(f"No webhook data found for phone number: {from_number}")
-        return jsonify({
-            "status": "error",
-            "message": "No webhook data found",
-            "data_sent": False
-        }), 404
-
-    # Use call_id from webhook data as td_uuid
-    td_uuid = webhook_data['call_id']
-
+    
     # Prepare financial data
     financial_data = {
         "debtAmount": parameters.get('debtAmount'),
@@ -204,21 +194,30 @@ def handle_send_financial_details(parameters, td_uuid, subdomain, data):
         "alreadyEnrolledAnyOtherProgram": parameters.get('alreadyEnrolledAnyOtherProgram')
     }
 
-    # Combine webhook data with financial data
-    combined_data = {
-        "webhook_data": {
-            "first_name": webhook_data.get('first_name'),
-            "last_name": webhook_data.get('last_name'),
-            "email": webhook_data.get('email'),
-            "address": webhook_data.get('address'),
-            "city": webhook_data.get('city'),
-            "state": webhook_data.get('state'),
-            "zip": webhook_data.get('zip'),
-            "campaign_title": webhook_data.get('campaign_title'),
-            "additional_data": webhook_data.get('additional_data')
-        },
-        "financial_data": financial_data
-    }
+    # If webhook data exists, combine it with financial data
+    if webhook_data:
+        td_uuid = webhook_data.get('call_id')
+        combined_data = {
+            "webhook_data": {
+                "first_name": webhook_data.get('first_name'),
+                "last_name": webhook_data.get('last_name'),
+                "email": webhook_data.get('email'),
+                "address": webhook_data.get('address'),
+                "city": webhook_data.get('city'),
+                "state": webhook_data.get('state'),
+                "zip": webhook_data.get('zip'),
+                "campaign_title": webhook_data.get('campaign_title'),
+                "additional_data": webhook_data.get('additional_data')
+            },
+            "financial_data": financial_data
+        }
+    else:
+        # If no webhook data, just use financial data and default td_uuid
+        logger.info("No webhook data found, proceeding with financial data only")
+        td_uuid = "1234"
+        combined_data = {
+            "financial_data": financial_data
+        }
 
     logger.info(f"Attempting to send keypress and combined data for TD_UUID: {td_uuid}")
     success = send_trackdrive_keypress(td_uuid, '*', subdomain, combined_data)
