@@ -9,6 +9,22 @@ from time import time
 import threading
 import json
 import base64
+from requests.adapters import HTTPAdapter
+from urllib3.util.retry import Retry
+
+# Add this at the top with other configurations
+def create_session_with_retries():
+    session = requests.Session()
+    retries = Retry(
+        total=3,  # number of retries
+        backoff_factor=1,  # wait 1, 2, 4 seconds between retries
+        status_forcelist=[408, 429, 500, 502, 503, 504],  # retry on these status codes
+        allowed_methods=["GET", "POST"]  # allow retries on GET and POST
+    )
+    adapter = HTTPAdapter(max_retries=retries)
+    session.mount('http://', adapter)
+    session.mount('https://', adapter)
+    return session
 
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 logger = logging.getLogger(__name__)
@@ -79,30 +95,55 @@ def handle_extract_caller_info(data, td_uuid, category, subdomain):
 
 
 def fetch_webhook_data(phone_number):
-    """Fetch webhook data from API using phone number"""
+    """Fetch webhook data from API using phone number with retries"""
+    session = create_session_with_retries()
+    
     try:
         headers = {
             "X-API-Key": OMNIA_VOICE_API_KEY,
             "Content-Type": "application/json"
         }
-        response = requests.get(
-            "https://api.omnia-voice.com/api/incoming",
-            headers=headers
+        
+        logger.info(f"Attempting to fetch webhook data for phone: {phone_number}")
+        response = session.get(
+            f"https://api.omnia-voice.com/api/incoming",
+            headers=headers,
+            timeout=10
         )
         response.raise_for_status()
         
-        # Get all calls and find the matching one by phone number
         calls = response.json()
+        # Normalize phone numbers for comparison
+        clean_from_number = phone_number.replace('+', '').replace('-', '').replace(' ', '')
+        
+        logger.info(f"Successfully fetched calls data. Searching for phone: {clean_from_number}")
         matching_call = next(
             (call for call in calls 
-             if call['caller_phone_number'] == phone_number),
+             if call['caller_phone_number'].replace('+', '').replace('-', '').replace(' ', '') == clean_from_number),
             None
         )
         
+        if matching_call is None:
+            logger.warning(f"No matching call found for phone number: {phone_number}")
+            return None
+            
+        logger.info(f"Found matching call data for phone: {phone_number}")
         return matching_call
-    except requests.RequestException as e:
-        logger.error(f"Failed to fetch webhook data: {str(e)}")
+        
+    except requests.Timeout:
+        logger.error(f"Timeout while fetching webhook data for phone: {phone_number} after retries")
         return None
+    except requests.RequestException as e:
+        logger.error(f"Failed to fetch webhook data after retries: {str(e)}")
+        if hasattr(e, 'response'):
+            logger.error(f"Response status: {e.response.status_code}")
+            logger.error(f"Response body: {e.response.text}")
+        return None
+    except Exception as e:
+        logger.error(f"Unexpected error while fetching webhook data: {str(e)}")
+        return None
+    finally:
+        session.close()
 
 def handle_send_financial_details(parameters, td_uuid, subdomain, data):
     logger.info(f"Handling sendFinancialDetails")
@@ -180,6 +221,7 @@ def handle_send_financial_details(parameters, td_uuid, subdomain, data):
 def send_trackdrive_keypress(td_uuid, keypress, subdomain="global-telecom-investors", combined_data=None):
     logger.info(f"Attempting to send TrackDrive keypress and data. TD_UUID: {td_uuid}, Keypress: {keypress}, Subdomain: {subdomain}")
     
+    session = create_session_with_retries()
     url = "https://global-telecom-investors.trackdrive.com/api/v1/calls/send_key_press"
     headers = {
         "Content-Type": "application/json",
@@ -191,12 +233,11 @@ def send_trackdrive_keypress(td_uuid, keypress, subdomain="global-telecom-invest
         return False
     
     payload = {
-        "id": str(td_uuid),  # Convert to string to ensure correct format
+        "id": str(td_uuid),
         "digits": keypress
     }
     
     if combined_data:
-        # Make sure we're sending all data in a structured way
         payload.update({
             "data": {
                 "customer_info": combined_data.get("webhook_data", {}),
@@ -205,15 +246,9 @@ def send_trackdrive_keypress(td_uuid, keypress, subdomain="global-telecom-invest
             }
         })
 
-    # Detailed logging of the complete request
-    logger.info("Complete TrackDrive API Request:")
-    logger.info(f"URL: {url}")
-    logger.info(f"Headers: {json.dumps(headers, indent=2)}")
-    logger.info(f"Payload: {json.dumps(payload, indent=2)}")
-
     try:
-        logger.info(f"Sending POST request to TrackDrive API. URL: {url}, Payload: {json.dumps(payload)}")
-        response = requests.post(url, headers=headers, json=payload)
+        logger.info(f"Sending POST request to TrackDrive API. Payload: {json.dumps(payload)}")
+        response = session.post(url, headers=headers, json=payload, timeout=10)
         
         # Log the response details
         logger.info(f"TrackDrive API response: Status Code {response.status_code}")
@@ -232,6 +267,9 @@ def send_trackdrive_keypress(td_uuid, keypress, subdomain="global-telecom-invest
                 print(transfer_message)
         
         return True
+    except requests.Timeout:
+        logger.error(f"Timeout sending keypress to TrackDrive for TD_UUID: {td_uuid}")
+        return False
     except requests.RequestException as e:
         error_message = f"FAILED: Could not send keypress '{keypress}' for TD_UUID: {td_uuid}. Error: {str(e)}"
         logger.error(error_message)
@@ -241,6 +279,8 @@ def send_trackdrive_keypress(td_uuid, keypress, subdomain="global-telecom-invest
             logger.error(f"Response status code: {e.response.status_code}")
             logger.error(f"Response content: {e.response.content}")
         return False
+    finally:
+        session.close()
     
 
 
