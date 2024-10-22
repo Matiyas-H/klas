@@ -105,8 +105,8 @@ def fetch_webhook_data(phone_number):
         }
         payload = {
             "caller_phone_number": phone_number,
-            "caller_first_name": "",  
-            "caller_last_name": ""   
+            "caller_first_name": "",
+            "caller_last_name": ""
         }
         
         logger.info(f"Attempting to fetch webhook data for phone: {phone_number}")
@@ -118,24 +118,39 @@ def fetch_webhook_data(phone_number):
         )
         response.raise_for_status()
         
-        calls = response.json()
-        # Normalize phone numbers for comparison
-        clean_from_number = phone_number.replace('+', '').replace('-', '').replace(' ', '')
+        # Log raw response
+        logger.info(f"Raw response: {response.text}")
         
-        logger.info(f"Successfully fetched calls data. Searching for phone: {clean_from_number}")
-        matching_call = next(
-            (call for call in calls 
-             if call['caller_phone_number'].replace('+', '').replace('-', '').replace(' ', '') == clean_from_number),
-            None
-        )
+        # Parse response
+        response_data = response.json()
+        logger.info(f"Parsed response data: {json.dumps(response_data, indent=2)}")
         
-        if matching_call is None:
-            logger.warning(f"No matching call found for phone number: {phone_number}")
-            return None
+        if isinstance(response_data, dict):
+            # If response is a single object
+            clean_from_number = phone_number.replace('+', '').replace('-', '').replace(' ', '')
+            response_phone = response_data.get('caller_phone_number', '').replace('+', '').replace('-', '').replace(' ', '')
             
-        logger.info(f"Found matching call data for phone: {phone_number}")
-        return matching_call
-        
+            if clean_from_number == response_phone:
+                logger.info(f"Found matching call data for phone: {phone_number}")
+                return response_data
+        elif isinstance(response_data, list):
+            # If response is an array
+            clean_from_number = phone_number.replace('+', '').replace('-', '').replace(' ', '')
+            
+            logger.info(f"Successfully fetched calls data. Searching for phone: {clean_from_number}")
+            matching_call = next(
+                (call for call in response_data 
+                 if call.get('caller_phone_number', '').replace('+', '').replace('-', '').replace(' ', '') == clean_from_number),
+                None
+            )
+            
+            if matching_call:
+                logger.info(f"Found matching call data for phone: {phone_number}")
+                return matching_call
+            
+        logger.warning(f"No matching call found for phone number: {phone_number}")
+        return None
+            
     except requests.Timeout:
         logger.error(f"Timeout while fetching webhook data for phone: {phone_number} after retries")
         return None
@@ -147,6 +162,7 @@ def fetch_webhook_data(phone_number):
         return None
     except Exception as e:
         logger.error(f"Unexpected error while fetching webhook data: {str(e)}")
+        logger.error(f"Full traceback:", exc_info=True)  # Add full traceback
         return None
     finally:
         session.close()
