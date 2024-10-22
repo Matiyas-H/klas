@@ -34,6 +34,8 @@ def handle_incoming_call():
     
     # Log request details
     data = request.json
+
+   
     logger.info(f"Incoming Request Data: {json.dumps(data, indent=2)}")
     logger.info(f"Request Headers: {dict(request.headers)}")
 
