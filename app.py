@@ -75,29 +75,30 @@ def fetch_webhook_data(phone_number):
             "X-API-Key": OMNIA_VOICE_API_KEY,
             "Content-Type": "application/json"
         }
-        payload = {
-            "caller_phone_number": phone_number,
-            "caller_first_name": "",
-            "caller_last_name": ""
-        }
-        
         logger.info("Making API request to Omnia Voice API")
-        response = requests.post(
-            "https://api.omnia-voice.com/api/incoming",
-            headers=headers,
-            json=payload
+        response = requests.get(  # Changed to GET
+            "https://api.omnia-voice.com/api/calls",  # Changed endpoint
+            headers=headers
         )
         response.raise_for_status()
         
-        webhook_data = response.json()
+        calls = response.json()
+        logger.info(f"Received {len(calls)} calls from API")
         
-        # Log the received data
-        logger.info("✅ Received webhook data:")
-        logger.info(f"Call ID: {webhook_data.get('call_id')}")
-        logger.info(f"Phone: {webhook_data.get('caller_phone_number')}")
-        logger.info(f"Timestamp: {webhook_data.get('timestamp')}")
+        matching_call = next(
+            (call for call in calls 
+             if call['caller_phone_number'] == phone_number),
+            None
+        )
         
-        return webhook_data
+        if matching_call:
+            logger.info("✅ Found matching call data:")
+            logger.info(f"Call ID: {matching_call.get('call_id')}")
+            logger.info(f"Phone: {matching_call.get('caller_phone_number')}")
+            return matching_call
+        else:
+            logger.warning(f"❌ No matching call found for phone number: {phone_number}")
+            return None
             
     except requests.RequestException as e:
         logger.error(f"❌ Failed to fetch webhook data: {str(e)}")
