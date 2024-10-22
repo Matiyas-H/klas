@@ -12,28 +12,37 @@ import base64
 from requests.adapters import HTTPAdapter
 from urllib3.util.retry import Retry
 
-# Add this at the top with other configurations
+# Enhanced logging setup
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(levelname)s - [%(filename)s:%(lineno)d] - %(message)s'
+)
+logger = logging.getLogger(__name__)
+
+# Add a file handler to keep logs
+file_handler = logging.FileHandler('trackdrive_integration.log')
+file_handler.setLevel(logging.INFO)
+formatter = logging.Formatter('%(asctime)s - %(levelname)s - [%(filename)s:%(lineno)d] - %(message)s')
+file_handler.setFormatter(formatter)
+logger.addHandler(file_handler)
+
 def create_session_with_retries():
     session = requests.Session()
     retries = Retry(
-        total=3,  # number of retries
-        backoff_factor=1,  # wait 1, 2, 4 seconds between retries
-        status_forcelist=[408, 429, 500, 502, 503, 504],  # retry on these status codes
-        allowed_methods=["GET", "POST"]  # allow retries on GET and POST
+        total=3,
+        backoff_factor=1,
+        status_forcelist=[408, 429, 500, 502, 503, 504],
+        allowed_methods=["GET", "POST"]
     )
     adapter = HTTPAdapter(max_retries=retries)
     session.mount('http://', adapter)
     session.mount('https://', adapter)
     return session
 
-logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
-logger = logging.getLogger(__name__)
-
 load_dotenv()
 app = Flask(__name__)
 
-logger.info("Starting application")
-
+# Load environment variables
 SERVER_SECRET = os.getenv('SERVER_SECRET')
 TEXTBACK_API_URL = os.getenv('TEXTBACK_API_URL')
 TEXTBACK_API_TOKEN = os.getenv('TEXTBACK_API_TOKEN')
@@ -42,60 +51,45 @@ TRACKDRIVE_PUBLIC_KEY = os.getenv('TRACKDRIVE_PUBLIC_KEY')
 TRACKDRIVE_PRIVATE_KEY = os.getenv('TRACKDRIVE_PRIVATE_KEY')
 OMNIA_VOICE_API_KEY = os.getenv('OMNIA_VOICE_API_KEY')
 TRACKDRIVE_AUTH = os.getenv('TRACKDRIVE_AUTH')
-logger.info("Loaded environment variables")
-
-
-
-
-
-logger.info("Configured session and cache")
-
-
-
-
 
 @app.route('/handle_incoming_call', methods=['POST'])
 def handle_incoming_call():
-    logger.info("Received request at /handle_incoming_call")
-    data = request.json
-    logger.info(f"Incoming Request Data: {json.dumps(data, indent=2)}")
-    logger.info(f"Headers: {dict(request.headers)}")
+    logger.info("🔵 New incoming call received")
+    try:
+        data = request.json
+        logger.info(f"📥 Incoming Request Data: {json.dumps(data, indent=2)}")
 
-    received_secret = request.headers.get('X-Vapi-Secret')
-    logger.info(f"Received Secret: {'*' * len(received_secret) if received_secret else 'None'}")
+        received_secret = request.headers.get('X-Vapi-Secret')
+        if received_secret != SERVER_SECRET:
+            logger.error("🚫 Security validation failed - invalid secret")
+            abort(403)
 
-    if received_secret != SERVER_SECRET:
-        logger.warning("Secret mismatch. Access denied.")
-        abort(403) 
+        message_type = data.get('message', {}).get('type')
+        logger.info(f"📋 Processing message type: {message_type}")
 
-    message_type = data.get('message', {}).get('type')
-    logger.info(f"Message Type: {message_type}")
+        if message_type == 'function-call':
+            function_call = data.get('message', {}).get('functionCall', {})
+            function_name = function_call.get('name')
+            parameters = function_call.get('parameters')
+            
+            logger.info(f"⚙️ Function called: {function_name}")
+            logger.info(f"📝 Parameters received: {json.dumps(parameters, indent=2)}")
 
-    if message_type == 'function-call':
-        logger.info("Handling function-call")
-        function_call = data.get('message', {}).get('functionCall', {})
-        function_name = function_call.get('name')
-        parameters = function_call.get('parameters')
-        logger.info(f"Function Name: {function_name}")
-        logger.info(f"Parameters: {json.dumps(parameters, indent=2)}")
-
-        if function_name == 'sendFinancialDetails':
-            return handle_send_financial_details(parameters, None, "global-telecom-investors", data)
+            if function_name == 'sendFinancialDetails':
+                return handle_send_financial_details(parameters, None, "global-telecom-investors", data)
+            else:
+                logger.error(f"❌ Unknown function called: {function_name}")
+                return jsonify({"error": f"Unknown function: {function_name}"}), 400
         else:
-            logger.warning(f"Unknown function name: {function_name}")
-            return jsonify({"error": f"Unknown function: {function_name}"}), 400
+            logger.error(f"❌ Invalid request type: {message_type}")
+            return jsonify({"error": "Invalid request"}), 400
 
-    else:
-        logger.warning(f"Invalid request type: {message_type}")
-        return jsonify({"error": "Invalid request"}), 400
-
-
-def handle_extract_caller_info(data, td_uuid, category, subdomain):
-    pass
-
+    except Exception as e:
+        logger.error(f"💥 Error in handle_incoming_call: {str(e)}", exc_info=True)
+        return jsonify({"error": "Internal server error"}), 500
 
 def fetch_webhook_data(phone_number):
-    """Fetch webhook data from API using phone number with retries"""
+    logger.info(f"🔍 Fetching webhook data for phone: {phone_number}")
     session = create_session_with_retries()
     
     try:
@@ -109,83 +103,49 @@ def fetch_webhook_data(phone_number):
             "caller_last_name": ""
         }
         
-        logger.info(f"Attempting to fetch webhook data for phone: {phone_number}")
         response = session.post(
             f"https://api.omnia-voice.com/api/incoming",
             headers=headers,
             json=payload,
             timeout=10
         )
+        
+        logger.info(f"📡 Webhook API Response Status: {response.status_code}")
+        logger.info(f"📡 Webhook API Response: {response.text}")
+        
         response.raise_for_status()
-        
-        # Log raw response
-        logger.info(f"Raw response: {response.text}")
-        
-        # Parse response
         response_data = response.json()
-        logger.info(f"Parsed response data: {json.dumps(response_data, indent=2)}")
         
-        if isinstance(response_data, dict):
-            # If response is a single object
-            clean_from_number = phone_number.replace('+', '').replace('-', '').replace(' ', '')
-            response_phone = response_data.get('caller_phone_number', '').replace('+', '').replace('-', '').replace(' ', '')
+        if response_data:
+            logger.info("✅ Successfully retrieved webhook data")
+            return response_data
+        else:
+            logger.warning("⚠️ No data found in webhook response")
+            return None
             
-            if clean_from_number == response_phone:
-                logger.info(f"Found matching call data for phone: {phone_number}")
-                return response_data
-        elif isinstance(response_data, list):
-            # If response is an array
-            clean_from_number = phone_number.replace('+', '').replace('-', '').replace(' ', '')
-            
-            logger.info(f"Successfully fetched calls data. Searching for phone: {clean_from_number}")
-            matching_call = next(
-                (call for call in response_data 
-                 if call.get('caller_phone_number', '').replace('+', '').replace('-', '').replace(' ', '') == clean_from_number),
-                None
-            )
-            
-            if matching_call:
-                logger.info(f"Found matching call data for phone: {phone_number}")
-                return matching_call
-            
-        logger.warning(f"No matching call found for phone number: {phone_number}")
-        return None
-            
-    except requests.Timeout:
-        logger.error(f"Timeout while fetching webhook data for phone: {phone_number} after retries")
-        return None
-    except requests.RequestException as e:
-        logger.error(f"Failed to fetch webhook data after retries: {str(e)}")
-        if hasattr(e, 'response'):
-            logger.error(f"Response status: {e.response.status_code}")
-            logger.error(f"Response body: {e.response.text}")
-        return None
     except Exception as e:
-        logger.error(f"Unexpected error while fetching webhook data: {str(e)}")
-        logger.error(f"Full traceback:", exc_info=True)  # Add full traceback
+        logger.error(f"💥 Error fetching webhook data: {str(e)}", exc_info=True)
         return None
     finally:
         session.close()
 
 def handle_send_financial_details(parameters, td_uuid, subdomain, data):
-    logger.info(f"Handling sendFinancialDetails")
+    logger.info("🏁 Starting financial details processing")
     
-    # Get phone number from incoming data
     call_object = data.get('message', {}).get('call', {})
     from_number = call_object.get('customer', {}).get('number')
     
     if not from_number:
-        logger.error("No phone number provided in request")
+        logger.error("❌ No phone number provided in request")
         return jsonify({
             "status": "error",
             "message": "No phone number provided",
             "data_sent": False
         }), 400
 
-    # Fetch webhook data using phone number
+    logger.info(f"📞 Processing call from: {from_number}")
     webhook_data = fetch_webhook_data(from_number)
     
-    # Prepare financial data
     financial_data = {
         "debtAmount": parameters.get('debtAmount'),
         "debtType": parameters.get('debtType'),
@@ -193,12 +153,14 @@ def handle_send_financial_details(parameters, td_uuid, subdomain, data):
         "hasCheckingAccount": parameters.get('hasCheckingAccount'),
         "alreadyEnrolledAnyOtherProgram": parameters.get('alreadyEnrolledAnyOtherProgram')
     }
+    
+    logger.info(f"💰 Financial data prepared: {json.dumps(financial_data, indent=2)}")
 
-    # If webhook data exists, combine it with financial data
     if webhook_data:
+        logger.info("📋 Webhook data found, combining with financial data")
         td_uuid = webhook_data.get('call_id')
         combined_data = {
-            "webhook_data": {
+            "customer_info": {
                 "first_name": webhook_data.get('first_name'),
                 "last_name": webhook_data.get('last_name'),
                 "email": webhook_data.get('email'),
@@ -209,103 +171,107 @@ def handle_send_financial_details(parameters, td_uuid, subdomain, data):
                 "campaign_title": webhook_data.get('campaign_title'),
                 "additional_data": webhook_data.get('additional_data')
             },
-            "financial_data": financial_data
+            "financial_info": financial_data
         }
     else:
-        # If no webhook data, just use financial data and default td_uuid
-        logger.info("No webhook data found, proceeding with financial data only")
+        logger.info("⚠️ No webhook data found, using financial data only")
         td_uuid = "1234"
         combined_data = {
-            "financial_data": financial_data
+            "customer_info": {},
+            "financial_info": financial_data
         }
 
-    logger.info(f"Attempting to send keypress and combined data for TD_UUID: {td_uuid}")
+    logger.info(f"🎯 Sending data to TrackDrive for UUID: {td_uuid}")
     success = send_trackdrive_keypress(td_uuid, '*', subdomain, combined_data)
     
     if success:
-        logger.info(f"Keypress '*' and combined data sent successfully for TD_UUID: {td_uuid}")
+        logger.info("✅ Successfully processed financial details")
         return jsonify({
             "status": "success",
             "message": "Keypress and combined data sent",
             "data_sent": True
         }), 200
     else:
-        logger.warning(f"Failed to send keypress '*' and combined data for TD_UUID: {td_uuid}")
+        logger.error("❌ Failed to process financial details")
         return jsonify({
             "status": "error",
             "message": "Failed to send keypress and combined data",
             "data_sent": False
         }), 500
 
-
-
 def send_trackdrive_keypress(td_uuid, keypress, subdomain="global-telecom-investors", combined_data=None):
-    logger.info(f"Attempting to send TrackDrive keypress and data. TD_UUID: {td_uuid}, Keypress: {keypress}, Subdomain: {subdomain}")
+    logger.info(f"🔄 Starting TrackDrive keypress operation - TD_UUID: {td_uuid}, Keypress: {keypress}")
     
     session = create_session_with_retries()
     url = "https://global-telecom-investors.trackdrive.com/api/v1/calls/send_key_press"
+    
     headers = {
         "Content-Type": "application/json",
         "Authorization": f"Basic {TRACKDRIVE_AUTH}"
     }
     
     if not td_uuid:
-        logger.error("Missing TD_UUID. Cannot send keypress to TrackDrive.")
+        logger.error("❌ Missing TD_UUID - Cannot proceed with keypress")
         return False
     
-    payload = {
-        "id": str(td_uuid),
-        "digits": keypress
-    }
-    
-    if combined_data:
-        payload.update({
-            "data": {
-                "customer_info": combined_data.get("webhook_data", {}),
-                "financial_info": combined_data.get("financial_data", {}),
+    try:
+        payload = {
+            "id": str(td_uuid),
+            "digits": keypress
+        }
+        
+        if combined_data:
+            payload["data"] = {
+                "customer_info": combined_data.get("customer_info", {}),
+                "financial_info": combined_data.get("financial_info", {}),
                 "timestamp": datetime.now().isoformat()
             }
-        })
 
-    try:
-        logger.info(f"Sending POST request to TrackDrive API. Payload: {json.dumps(payload)}")
+        # Log the payload (with sensitive data masked)
+        masked_payload = {
+            "id": payload["id"],
+            "digits": payload["digits"],
+            "data": "***MASKED***" if "data" in payload else None
+        }
+        logger.info(f"📤 Sending payload to TrackDrive: {json.dumps(masked_payload, indent=2)}")
+        
+        # Send request to TrackDrive
         response = session.post(url, headers=headers, json=payload, timeout=10)
         
-        # Log the response details
-        logger.info(f"TrackDrive API response: Status Code {response.status_code}")
-        logger.info(f"Response Content: {response.text}")
+        # Log response details
+        logger.info(f"📥 TrackDrive Response Status: {response.status_code}")
+        logger.info(f"📥 TrackDrive Response Body: {response.text}")
         
         response.raise_for_status()
         
+        # Process response
         if response.status_code == 200:
-            success_message = f"SUCCESS: Keypress '{keypress}' sent successfully for TD_UUID: {td_uuid}"
-            logger.info(success_message)
-            print(success_message)
+            response_data = response.json()
+            
+            # Log successful keypress details
+            logger.info(f"✅ Keypress '{keypress}' successfully sent for TD_UUID: {td_uuid}")
+            logger.info(f"📋 TrackDrive Response Data: {json.dumps(response_data, indent=2)}")
             
             if keypress == '*':
-                transfer_message = f"SUCCESS: Call transfer initiated for TD_UUID: {td_uuid}"
-                logger.info(transfer_message)
-                print(transfer_message)
-        
-        return True
+                logger.info(f"🔄 Transfer initiated for TD_UUID: {td_uuid}")
+            
+            return True
+            
     except requests.Timeout:
-        logger.error(f"Timeout sending keypress to TrackDrive for TD_UUID: {td_uuid}")
+        logger.error(f"⏰ Timeout sending keypress to TrackDrive - TD_UUID: {td_uuid}")
         return False
     except requests.RequestException as e:
-        error_message = f"FAILED: Could not send keypress '{keypress}' for TD_UUID: {td_uuid}. Error: {str(e)}"
-        logger.error(error_message)
-        print(error_message)
-        
-        if hasattr(e, 'response') and e.response is not None:
-            logger.error(f"Response status code: {e.response.status_code}")
-            logger.error(f"Response content: {e.response.content}")
+        logger.error(f"💥 TrackDrive API error - TD_UUID: {td_uuid}, Error: {str(e)}")
+        if hasattr(e, 'response'):
+            logger.error(f"Response status: {e.response.status_code}")
+            logger.error(f"Response body: {e.response.text}")
+        return False
+    except Exception as e:
+        logger.error(f"💥 Unexpected error in TrackDrive keypress - TD_UUID: {td_uuid}, Error: {str(e)}", exc_info=True)
         return False
     finally:
         session.close()
-    
-
-
 
 if __name__ == '__main__':
-    logger.info("Starting Flask application")
+    logger.info("🚀 Starting Flask application")
     app.run(debug=True, port=5000)
