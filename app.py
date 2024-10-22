@@ -75,10 +75,17 @@ def fetch_webhook_data(phone_number):
             "X-API-Key": OMNIA_VOICE_API_KEY,
             "Content-Type": "application/json"
         }
+        payload = {
+        "caller_phone_number": phone_number,
+        "caller_first_name": "",
+        "caller_last_name": ""
+        }
+        
         logger.info("Making API request to Omnia Voice API")
-        response = requests.get(
+        response = requests.post(
             "https://api.omnia-voice.com/api/incoming",
-            headers=headers
+            headers=headers,
+            json=payload
         )
         response.raise_for_status()
         
