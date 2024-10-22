@@ -104,7 +104,9 @@ def fetch_webhook_data(phone_number):
             "Content-Type": "application/json"
         }
         payload = {
-            "caller_phone_number": phone_number
+            "caller_phone_number": phone_number,
+            "caller_first_name": "",  
+            "caller_last_name": ""   
         }
         
         logger.info(f"Attempting to fetch webhook data for phone: {phone_number}")
