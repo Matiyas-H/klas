@@ -108,9 +108,10 @@ def fetch_webhook_data(phone_number):
         }
         
         logger.info(f"Attempting to fetch webhook data for phone: {phone_number}")
-        response = session.get(
+        response = session.post(
             f"https://api.omnia-voice.com/api/incoming",
             headers=headers,
+            json=payload,
             timeout=10
         )
         response.raise_for_status()
