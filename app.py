@@ -103,6 +103,9 @@ def fetch_webhook_data(phone_number):
             "X-API-Key": OMNIA_VOICE_API_KEY,
             "Content-Type": "application/json"
         }
+        payload = {
+            "caller_phone_number": phone_number
+        }
         
         logger.info(f"Attempting to fetch webhook data for phone: {phone_number}")
         response = session.get(
