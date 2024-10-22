@@ -80,6 +80,12 @@ def handle_incoming_call():
             else:
                 logger.error(f"❌ Unknown function called: {function_name}")
                 return jsonify({"error": f"Unknown function: {function_name}"}), 400
+        elif message_type == 'status-update':
+            # Handle status updates
+            logger.info("📊 Received status update")
+            status_data = data.get('message', {}).get('status', {})
+            logger.info(f"Status update data: {json.dumps(status_data, indent=2)}")
+            return jsonify({"status": "success", "message": "Status update received"}), 200
         else:
             logger.error(f"❌ Invalid request type: {message_type}")
             return jsonify({"error": "Invalid request"}), 400
@@ -203,7 +209,11 @@ def send_trackdrive_keypress(td_uuid, keypress, subdomain="global-telecom-invest
     logger.info(f"🔄 Starting TrackDrive keypress operation - TD_UUID: {td_uuid}, Keypress: {keypress}")
     
     session = create_session_with_retries()
-    url = "https://global-telecom-investors.trackdrive.com/api/v1/calls/send_key_press"
+    
+    # Updated URL format
+    url = f"https://{subdomain}.trackdrive.net/api/v1/calls/keypress"  # Changed to .net and updated endpoint
+    
+    logger.info(f"🌐 Using TrackDrive endpoint: {url}")
     
     headers = {
         "Content-Type": "application/json",
@@ -216,22 +226,23 @@ def send_trackdrive_keypress(td_uuid, keypress, subdomain="global-telecom-invest
     
     try:
         payload = {
-            "id": str(td_uuid),
-            "digits": keypress
+            "call_id": str(td_uuid),  # Changed from 'id' to 'call_id'
+            "key": keypress,          # Changed from 'digits' to 'key'
+            "timestamp": datetime.now().isoformat()
         }
         
         if combined_data:
-            payload["data"] = {
+            payload["additional_data"] = {  # Changed from 'data' to 'additional_data'
                 "customer_info": combined_data.get("customer_info", {}),
-                "financial_info": combined_data.get("financial_info", {}),
-                "timestamp": datetime.now().isoformat()
+                "financial_info": combined_data.get("financial_info", {})
             }
 
         # Log the payload (with sensitive data masked)
         masked_payload = {
-            "id": payload["id"],
-            "digits": payload["digits"],
-            "data": "***MASKED***" if "data" in payload else None
+            "call_id": payload["call_id"],
+            "key": payload["key"],
+            "timestamp": payload["timestamp"],
+            "additional_data": "***MASKED***" if "additional_data" in payload else None
         }
         logger.info(f"📤 Sending payload to TrackDrive: {json.dumps(masked_payload, indent=2)}")
         
