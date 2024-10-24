@@ -149,27 +149,22 @@ def handle_send_financial_details(parameters, td_uuid, subdomain, data):
 
     # Prepare data
     logger.info("Preparing combined data for TrackDrive")
-    combined_data = {
-        "webhook_data": {
-            "first_name": webhook_data.get('first_name', ''),
-            "last_name": webhook_data.get('last_name', ''),
-            "email": webhook_data.get('email', ''),
-            "address": webhook_data.get('address', ''),
-            "city": webhook_data.get('city', ''),
-            "state": webhook_data.get('state', ''),
-            "zip": webhook_data.get('zip', ''),
-            "campaign_title": webhook_data.get('campaign_title', ''),
-            "additional_data": webhook_data.get('additional_data', ''),
-            "caller_phone_number": webhook_data.get('caller_phone_number', '')
-        },
-        "financial_data": {
-            "debtAmount": parameters.get('debtAmount'),
-            "debtType": parameters.get('debtType'),
-            "monthlyIncome": parameters.get('monthlyIncome'),
-            "hasCheckingAccount": parameters.get('hasCheckingAccount'),
-            "alreadyEnrolledAnyOtherProgram": parameters.get('alreadyEnrolledAnyOtherProgram')
-        },
-        "timestamp": webhook_data.get('timestamp', datetime.datetime.now().isoformat())
+     combined_data = {
+        "first_name": webhook_data.get('first_name', ''),
+        "last_name": webhook_data.get('last_name', ''),
+        "email": webhook_data.get('email', ''),
+        "address": webhook_data.get('address', ''),
+        "city": webhook_data.get('city', ''),
+        "state": webhook_data.get('state', ''),
+        "zip": webhook_data.get('zip', ''),
+        "campaign_title": webhook_data.get('campaign_title', ''),
+        "additional_data": webhook_data.get('additional_data', 'NA'),
+        "caller_phone_number": webhook_data.get('caller_phone_number', ''),
+        "total_estimated_debt": parameters.get('debtAmount'),
+        "debt_type": parameters.get('debtType'),
+        "monthly_income": parameters.get('monthlyIncome'),
+        "valid_checking_account": parameters.get('hasCheckingAccount'),
+        "already_enrolled_in_relief_program": parameters.get('alreadyEnrolledAnyOtherProgram'),
     }
     logger.info(f"Combined data prepared: {json.dumps(combined_data, indent=2)}")
 
