@@ -149,7 +149,7 @@ def handle_send_financial_details(parameters, td_uuid, subdomain, data):
 
     # Prepare data
     logger.info("Preparing combined data for TrackDrive")
-     combined_data = {
+    combined_data = {
         "first_name": webhook_data.get('first_name', ''),
         "last_name": webhook_data.get('last_name', ''),
         "email": webhook_data.get('email', ''),
