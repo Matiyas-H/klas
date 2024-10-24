@@ -112,14 +112,14 @@ def fetch_webhook_data(phone_number):
 def handle_send_financial_details(parameters, td_uuid, subdomain, data):
     logger.info("-------- HANDLING FINANCIAL DETAILS --------")
     logger.info("Starting financial details processing")
-
-
+    logger.info("-------- HANDLING FINANCIAL DETAILS --------")
+    logger.info("Starting financial details processing")
     logger.info("Financial Data Received:")
-    logger.info(f"Debt Amount: {parameters.get('debtAmount', 'NOT PROVIDED')}")
-    logger.info(f"Debt Type: {parameters.get('debtType', 'NOT PROVIDED')}")
-    logger.info(f"Monthly Income: {parameters.get('monthlyIncome', 'NOT PROVIDED')}")
-    logger.info(f"Has Checking Account: {parameters.get('hasCheckingAccount', 'NOT PROVIDED')}")
-    logger.info(f"Already Enrolled in Other Program: {parameters.get('alreadyEnrolledAnyOtherProgram', 'NOT PROVIDED')}")
+    logger.info(f"Debt Amount: {parameters.get('total_estimated_debt', 'NOT PROVIDED')}")  # Changed from debtAmount
+    logger.info(f"Debt Type: {parameters.get('debt_type', 'NOT PROVIDED')}")  # Changed from debtType
+    logger.info(f"Monthly Income: {parameters.get('monthly_income', 'NOT PROVIDED')}")  # Changed from monthlyIncome
+    logger.info(f"Has Checking Account: {parameters.get('valid_checking_account', 'NOT PROVIDED')}")  # Changed from hasCheckingAccount
+    logger.info(f"Already Enrolled in Other Program: {parameters.get('already_enrolled_in_relief_program', 'NOT PROVIDED')}")  # Changed from alreadyEnrolledAnyOtherProgram
     # Extract phone number
     call_object = data.get('message', {}).get('call', {})
     from_number = call_object.get('customer', {}).get('number')
