@@ -112,7 +112,14 @@ def fetch_webhook_data(phone_number):
 def handle_send_financial_details(parameters, td_uuid, subdomain, data):
     logger.info("-------- HANDLING FINANCIAL DETAILS --------")
     logger.info("Starting financial details processing")
-    
+
+
+    logger.info("Financial Data Received:")
+    logger.info(f"Debt Amount: {parameters.get('debtAmount', 'NOT PROVIDED')}")
+    logger.info(f"Debt Type: {parameters.get('debtType', 'NOT PROVIDED')}")
+    logger.info(f"Monthly Income: {parameters.get('monthlyIncome', 'NOT PROVIDED')}")
+    logger.info(f"Has Checking Account: {parameters.get('hasCheckingAccount', 'NOT PROVIDED')}")
+    logger.info(f"Already Enrolled in Other Program: {parameters.get('alreadyEnrolledAnyOtherProgram', 'NOT PROVIDED')}")
     # Extract phone number
     call_object = data.get('message', {}).get('call', {})
     from_number = call_object.get('customer', {}).get('number')
