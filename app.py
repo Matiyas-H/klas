@@ -144,8 +144,8 @@ def handle_send_financial_details(parameters, td_uuid, subdomain, data):
         }), 404
 
     # Get td_uuid from call_id
-    # td_uuid = webhook_data['call_id']
-    td_uuid="45f05613-a5d7-4048-bc7b-32537cffb6a0"
+    td_uuid = webhook_data['call_id']
+    # td_uuid="45f05613-a5d7-4048-bc7b-32537cffb6a0"
     logger.info(f"✅ Successfully mapped td_uuid: {td_uuid}")
 
     # Prepare data
