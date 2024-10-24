@@ -160,11 +160,11 @@ def handle_send_financial_details(parameters, td_uuid, subdomain, data):
         "campaign_title": webhook_data.get('campaign_title', ''),
         "additional_data": webhook_data.get('additional_data', 'NA'),
         "caller_phone_number": webhook_data.get('caller_phone_number', ''),
-        "total_estimated_debt": parameters.get('debtAmount'),
-        "debt_type": parameters.get('debtType'),
-        "monthly_income": parameters.get('monthlyIncome'),
-        "valid_checking_account": parameters.get('hasCheckingAccount'),
-        "already_enrolled_in_relief_program": parameters.get('alreadyEnrolledAnyOtherProgram'),
+        "total_estimated_debt": parameters.get('total_estimated_debt'),
+        "debt_type": parameters.get('debt_type'),
+        "monthly_income": parameters.get('monthly_income'),
+        "valid_checking_account": parameters.get('valid_checking_account'),
+        "already_enrolled_in_relief_program": parameters.get('already_enrolled_in_relief_program'),
     }
     logger.info(f"Combined data prepared: {json.dumps(combined_data, indent=2)}")
 
